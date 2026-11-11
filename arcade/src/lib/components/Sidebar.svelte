@@ -25,7 +25,7 @@
 <!-- The run is mutated in place: redraw when it changes. -->
 {#key arcade.v}
 <aside>
-	<div class="title">{m.title.toUpperCase()}</div>
+	<div class="row top"><span class="title">{m.title.toUpperCase()}</span><span class="money"><Count value={run.money} prefix="$" /></span></div>
 	<div class="row"><span>{m.words.table} {run.table} of {m.tables}</span><span class="tables">{#each Array(m.tables) as _, i}<span class:done={i + 1 < run.table} class:now={i + 1 === run.table}></span>{/each}</span></div>
 	<!-- The board, the goal and the boss open the table overview. -->
 	<button class="row dim open" onclick={() => (arcade.overlay = 'table')}><span>{R.boardName(run)}</span><span>{run.board} of {m.boardsPerTable} · details</span></button>
@@ -48,7 +48,6 @@
 			</div>
 		</div>
 	{/if}
-	<div class="row"><span class="dim">Money</span><span class="money"><Count value={run.money} prefix="$" /></span></div>
 	{#if run.boss}
 		<!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
 		<div class="boss open" class:on={R.bossActive(run)} title={run.boss.text} onclick={() => (arcade.overlay = 'table')}>
@@ -62,6 +61,7 @@
 		<Button variant="ploy" size="sm" title={tag.text} onclick={() => arcade.do({ t: 'skip' })} style="width: 100%">Skip board for {tag.name}</Button>
 	{/if}
 
+	<div class="mid">
 	<div class="sub">Levels</div>
 	{#each levels as u}
 		<div class="lv">{#if u.glyph}<span class="glyph">{u.glyph}</span>{:else}<Icon name={u.icon} scale={1} />{/if}<span>{u.name}</span><span class="dim">Lv.{run.levels[u.key] ?? 1}</span></div>
@@ -84,7 +84,7 @@
 		{/each}
 	</div>
 
-	<div class="grow"></div>
+	</div>
 	<SpeedSlider />
 	{#if ploy !== null && run.ploys[ploy]}
 		{@const def = R.ployDef(run, run.ploys[ploy])!}
@@ -104,14 +104,12 @@
 		<div class="pop" onclick={() => (reading = null)}><RelicInfo relic={run.relics.find((r) => r.key === reading)!} note={R.bossActive(run) && run.jinxed === reading ? 'Jinxed this board' : undefined} /></div>
 	{/if}
 	<div class="toggles">
-		<Button variant="plain" size="sm" onclick={() => sound.toggleSfx()} style="width: 100%">Sound {settings.sfx ? 'on' : 'off'}</Button>
-		<Button variant="plain" size="sm" onclick={() => sound.toggleMusic()} style="width: 100%">Music {settings.music ? 'on' : 'off'}</Button>
+		<Button variant="plain" size="sm" title="Sound effects" onclick={() => sound.toggleSfx()} style="width: 100%; {settings.sfx ? '' : 'opacity: 0.55'}">Sound</Button>
+		<Button variant="plain" size="sm" title="Music (M)" onclick={() => sound.toggleMusic()} style="width: 100%; {settings.music ? '' : 'opacity: 0.55'}">Music</Button>
+		<Button variant="plain" size="sm" onclick={() => (arcade.overlay = 'help')} style="width: 100%">Help</Button>
+		<Button variant="plain" size="sm" onclick={() => arcade.toMenu()} style="width: 100%">Menu</Button>
 	</div>
-	<div class="foot">
-		<span class="dim">Seed {run.seed} · <button class="link" onclick={() => arcade.downloadLog()}>log</button></span>
-		<Button variant="plain" size="sm" onclick={() => (arcade.overlay = 'help')}>Help</Button>
-		<Button variant="plain" size="sm" onclick={() => arcade.toMenu()}>Menu</Button>
-	</div>
+	<div class="foot dim">Seed {run.seed} · <button class="link" onclick={() => arcade.downloadLog()}>log</button></div>
 </aside>
 {/key}
 
@@ -146,8 +144,21 @@
 	:global(.stage.portrait) .foot {
 		flex-wrap: wrap;
 	}
-	:global(.stage.portrait) .grow {
-		display: none;
+	:global(.stage.portrait) .mid {
+		display: contents;
+	}
+	.top {
+		align-items: baseline;
+	}
+	.mid {
+		flex: 1;
+		min-height: 0;
+		overflow-y: auto;
+		display: flex;
+		flex-direction: column;
+		gap: 6px;
+		scrollbar-width: thin;
+		scrollbar-color: var(--brass-dim) transparent;
 	}
 	.title {
 		color: var(--brass);
@@ -291,7 +302,7 @@
 		color: var(--ink-dim);
 	}
 	.sub {
-		margin-top: 6px;
+		margin-top: 2px;
 		color: var(--ink-dim);
 		font-size: 14px;
 	}
@@ -381,17 +392,10 @@
 	}
 	.toggles {
 		display: grid;
-		grid-template-columns: 1fr 1fr;
+		grid-template-columns: repeat(4, 1fr);
 		gap: 6px;
-	}
-	.grow {
-		flex: 1;
 	}
 	.foot {
-		gap: 6px;
-		display: flex;
-		justify-content: space-between;
-		align-items: center;
-		font-size: 13px;
+		font-size: 12px;
 	}
 </style>
