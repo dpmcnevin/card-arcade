@@ -1,0 +1,73 @@
+import * as H from '$kit/games/hearts/rules/hearts.ts';
+import { hearts } from '$kit/games/hearts/module.ts';
+import type { HeartsHand } from '$kit/games/hearts/module.ts';
+import type { Run } from '$kit/src/run/run.ts';
+import * as R from '$kit/src/run/run.ts';
+import type { GameUI, TableView } from './types.ts';
+import { POS } from './types.ts';
+import HeartsPass from './HeartsPass.svelte';
+
+function view(run: Run<HeartsHand>): TableView {
+	const h = run.hand;
+	const st = h.state;
+	const pts = st ? H.pointsTaken(st) : [0, 0, 0, 0, 0];
+	const seats = [1, 2, 3, 4].map((s) => ({
+		pos: POS[s],
+		name: s === H.PLAYER ? 'You' : H.SEAT_NAMES[s],
+		cards: st ? st.hands[s] : h.dealt[s],
+		// Spyglass shows the opponents' cards for the rest of its trick.
+		// Blindfold: you pass without seeing your hand.
+		faceUp: (s === H.PLAYER && !(!st && R.bossIs(run, 'blindfold'))) || (!!st && h.spyTrick === st.tricks.length),
+		// Card Counter: the suits each opponent has shown they're out of.
+		tally: st ? `${pts[s]}${s !== H.PLAYER && R.hasRule(run, 'cardCounter') ? ' ' + [1, 2, 3, 4].filter((x) => st.voids[s][x]).map((x) => '♣♦♥♠'[x - 1]).join('') : ''}` : undefined,
+		active: !!st && !st.complete && st.turn === s,
+		playable: s === H.PLAYER
+	}));
+	const shown = st ? (st.trick.length ? st.trick : (st.tricks.at(-1)?.plays ?? [])) : [];
+	return {
+		seats,
+		trick: shown.map((p) => ({ pos: POS[p.seat], card: p.card })),
+		// The Fog: cards after the lead stay face down until the trick is done.
+		hidden: R.bossIs(run, 'fog') && st && st.trick.length ? new Set(st.trick.slice(1).filter((p) => p.seat !== H.PLAYER).map((p) => `${p.card.suit}-${p.card.rank}`)) : undefined,
+		trickDone: !!st && !st.trick.length && st.tricks.length > 0,
+		lastTrick: (() => { const t = st?.tricks.at(-1); return t ? { plays: t.plays.map((p) => ({ pos: POS[p.seat], card: p.card })), winner: POS[t.winner] } : undefined; })(),
+		played: st ? st.played.map((p) => p.card) : [],
+		legal: new Set(st && !st.complete && st.turn === H.PLAYER ? H.legalPlays(st, H.PLAYER).map((c) => `${c.suit}-${c.rank}`) : []),
+		banner: !st ? `Pass ${h.passDir}` : h.passDir === 'hold' ? 'No passing this hand' : undefined
+	};
+}
+
+export const heartsUI: GameUI = {
+	module: hearts,
+	blurb: 'Pass three, dodge every point, or take them all and shoot the moon.',
+	back: 'standard',
+	view: view as GameUI['view'],
+	Pre: HeartsPass,
+	cue(run, memo) {
+		const st = (run.hand as HeartsHand).state;
+		if (!st) return null;
+		const out: ReturnType<NonNullable<GameUI['cue']>> = {};
+		if (st.heartsBroken && !memo.broken) {
+			memo.broken = true;
+			Object.assign(out, { toast: 'Hearts are broken!', tone: 'bad', sound: 'hearts_broken' });
+		}
+		const queen = st.played.find((p) => H.isQueenOfSpades(p.card));
+		if (queen && !memo.queen) {
+			memo.queen = true;
+			Object.assign(out, { sound: 'queen_played', shake: 4 });
+		}
+		const t = st.tricks.find((x) => x.plays.some((p) => H.isQueenOfSpades(p.card)));
+		if (t && !memo.queenTaken) {
+			memo.queenTaken = true;
+			const you = t.winner === H.PLAYER;
+			return { toast: you ? 'You took the queen of spades!' : `${H.SEAT_NAMES[t.winner]} took the queen`, tone: you ? 'bad' : 'good', sound: you ? 'queen_taken' : 'queen_dodged', shake: you ? 9 : 0 };
+		}
+		return out.toast || out.sound ? out : null;
+	},
+	help: [
+		{ title: 'The hand', text: 'Pass three cards (left, right, across, then a hand with no passing). Follow suit if you can; the highest card of the led suit wins the trick. Hearts are 1 point each and the queen of spades 13; you can’t lead hearts until one has been played.' },
+		{ title: 'Scoring', text: 'Every hand scores the 26 points you dodged as chips, +10 for a clean hand (no points). Take all 26 and you shoot the moon: 78 chips, x2.' },
+		{ title: 'Upgrades', text: 'The Dodge levels every hand, Clean Sheet hands where you take nothing, Moonshot the moon.' }
+	],
+	pick: 3
+};

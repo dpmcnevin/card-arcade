@@ -1,0 +1,280 @@
+// Opponent AI for Hearts, and the autopilot that plays your seat when asked.
+//
+// Heuristics a decent club player uses: pass the queen of spades and the
+// high spades that attract her, pass high hearts, and try to void a short
+// suit. In play: duck under the winning card whenever points are on the
+// table, win cheap tricks you're last to, dump the queen and high hearts when
+// void, flush the queen out with low spades, and gang up on anyone who looks
+// like they're shooting the moon. Not a perfect player, on purpose.
+
+import * as cards from '../../../src/core/rules/cards.ts';
+import * as H from './hearts.ts';
+import { luaSort } from '../../../src/core/rules/luasort.ts';
+import type { Card, Hand } from '../../../src/core/rules/cards.ts';
+import type { HandState } from './hearts.ts';
+import type { RNG } from '../../../src/core/rules/rng.ts';
+
+export const DEFAULT_SKILL = 0.9;
+
+// ------------------------------------------------------------------ passing
+
+/** How much a card wants to leave the hand (higher = pass it). */
+function passDanger(c: Card, hand: Hand): number {
+	const spades = cards.cardsOfSuit(hand, H.SPADES);
+	const lowSpades = spades.filter((s) => s.rank < 12).length;
+	const suitLen = cards.countSuit(hand, c.suit);
+	if (c.suit === H.SPADES) {
+		// The queen and the cards above her are dangerous without low cover.
+		if (c.rank >= 12) return lowSpades >= 4 ? 4 : 100 + c.rank;
+		return 0;
+	}
+	let d = c.rank;
+	if (c.suit === H.HEARTS) d += c.rank >= 11 ? 12 : 3;
+	// Shed short suits entirely to make a void.
+	if (suitLen <= 3 && c.suit !== H.HEARTS) d += 8 - suitLen * 2;
+	return d;
+}
+
+/** Three cards to pass. */
+export function choosePass(hand: Hand, rng: RNG, skill = DEFAULT_SKILL): Card[] {
+	if (rng.chance(1 - skill)) return rng.sample(hand, 3);
+	const scored = hand.map((c) => ({ c, d: passDanger(c, hand) }));
+	luaSort(scored, (a, b) => (a.d !== b.d ? a.d > b.d : a.c.suit !== b.c.suit ? a.c.suit > b.c.suit : a.c.rank > b.c.rank));
+	return scored.slice(0, 3).map((x) => x.c);
+}
+
+// ------------------------------------------------------------------ play
+
+export interface AIContext {
+	rng: RNG;
+	skill?: number;
+	/** Mistakes look like a person's (a plausible wrong card), not a random card. */
+	plausible?: boolean;
+	/** A seat to push points onto (bosses: the Shark, the Cartel). When it's
+	 *  winning the trick, a void seat dumps its worst card; when it isn't,
+	 *  points are held back for later. */
+	target?: number;
+	/** A card saved for one seat (bosses: the Widow, the Diamond Jack): when
+	 *  void, dump it only on a trick that seat is winning; otherwise keep it. */
+	saveFor?: { seat: number; card: (c: Card) => boolean };
+}
+
+/** Is this hand strong enough to try for the moon? Lots of high cards,
+ *  and the top hearts to take the heart tricks. */
+export function moonWorthy(hand: Hand): boolean {
+	const high = hand.filter((c) => c.rank >= 12).length;
+	const hearts = hand.filter((c) => c.suit === H.HEARTS);
+	const topHearts = hearts.filter((c) => c.rank >= 12).length;
+	const spadeTop = hand.some((c) => c.suit === H.SPADES && c.rank >= 13) || hand.some(H.isQueenOfSpades);
+	return high >= 6 && hearts.length >= 4 && topHearts >= 2 && spadeTop;
+}
+
+/** Still going for the moon: no one else has taken a point. */
+function shooting(state: HandState, seat: number): boolean {
+	if (!state.moonSeats?.includes(seat)) return false;
+	const pts = H.pointsTaken(state);
+	return [1, 2, 3, 4].every((s) => s === seat || pts[s] === 0);
+}
+
+/** Play for every trick: lead the top card of the longest suit, win when
+ *  following if possible (as cheaply as still wins), dump low off-suit. */
+function chooseMoon(state: HandState, seat: number, legal: Card[]): Card {
+	if (state.trick.length === 0) {
+		const bySuit = new Map<number, Card[]>();
+		for (const c of legal) bySuit.set(c.suit, [...(bySuit.get(c.suit) ?? []), c]);
+		let best: Card[] = legal;
+		for (const list of bySuit.values()) if (highest(list).rank > highest(best).rank || (highest(list).rank === highest(best).rank && list.length > best.length)) best = list;
+		return highest(best);
+	}
+	const win = H.trickWinner(state.trick);
+	const following = legal[0].suit === state.ledSuit;
+	if (following) {
+		const above = legal.filter((c) => c.rank > win.card.rank);
+		return above.length > 0 ? (state.trick.length === 3 ? lowest(above) : highest(above)) : lowest(legal);
+	}
+	// Void: throw the lowest card that isn't a point (keep points to win later).
+	const clean = legal.filter((c) => state.pts(c) <= 0);
+	return lowest(clean.length > 0 ? clean : legal);
+}
+
+/** The n cards most dangerous to hold: the queen, then the spades above her
+ *  and high hearts. For the Pickpocket boss, who passes you exactly these. */
+export function mostDangerous(hand: Hand, n: number): Card[] {
+	const score = (c: Card) =>
+		H.isQueenOfSpades(c) ? 1000 : c.suit === H.HEARTS ? 100 + c.rank : c.suit === H.SPADES && c.rank > 12 ? 90 + c.rank : c.rank;
+	const scored = hand.map((c) => ({ c, d: score(c) }));
+	luaSort(scored, (a, b) => (a.d !== b.d ? a.d > b.d : a.c.suit > b.c.suit));
+	return scored.slice(0, n).map((x) => x.c);
+}
+
+const lowest = (list: Card[]) => list.reduce((a, b) => (b.rank < a.rank ? b : a));
+const highest = (list: Card[]) => list.reduce((a, b) => (b.rank > a.rank ? b : a));
+
+/**
+ * The seat that might be shooting the moon: it has taken every point so far,
+ * and enough of them to be a threat. Null if nobody is.
+ */
+function moonThreat(state: HandState, me: number): number | null {
+	const pts = H.pointsTaken(state);
+	const total = pts.reduce((a, b) => a + b, 0);
+	if (total < 8) return null;
+	for (let s = 1; s <= 4; s++) if (s !== me && pts[s] === total) return s;
+	return null;
+}
+
+function chooseLead(state: HandState, seat: number, legal: Card[]): Card {
+	const hand = state.hands[seat];
+	const holdQueen = hand.some(H.isQueenOfSpades);
+	// Flush out the queen with a low spade while she's still out there.
+	if (!holdQueen && H.queensOutstanding(state, hand) > 0) {
+		const lowSpades = legal.filter((c) => c.suit === H.SPADES && c.rank < 12);
+		if (lowSpades.length > 0) return highest(lowSpades);
+	}
+	// Otherwise lead low from the shortest safe suit, so it voids soonest.
+	const bySuit = new Map<number, Card[]>();
+	for (const c of legal) {
+		if (c.suit === H.HEARTS) continue;
+		if (c.suit === H.SPADES && c.rank >= 12 && !H.queenGone(state)) continue;
+		bySuit.set(c.suit, [...(bySuit.get(c.suit) ?? []), c]);
+	}
+	let best: Card[] | undefined;
+	for (const list of bySuit.values()) if (!best || list.length < best.length) best = list;
+	if (best) return lowest(best);
+	return lowest(legal);
+}
+
+function chooseFollow(state: HandState, seat: number, legal: Card[], ctx: AIContext): Card {
+	const led = state.ledSuit!;
+	const following = legal[0].suit === led;
+	const win = H.trickWinner(state.trick);
+	const trickPts = H.pointsIn(state.trick.map((p) => p.card), state.pts) + (state.tricks.length === 0 ? H.pointsIn(state.kitty, state.pts) : 0);
+	const last = state.trick.length === 3;
+	const threat = moonThreat(state, seat);
+
+	if (!following && ctx.saveFor && seat !== ctx.saveFor.seat) {
+		const saved = legal.filter(ctx.saveFor.card);
+		if (saved.length > 0) {
+			if (win.seat === ctx.saveFor.seat) return saved[0];
+			const rest = legal.filter((c) => !ctx.saveFor!.card(c));
+			if (rest.length > 0) legal = rest;
+		}
+	}
+	if (!following) {
+		// Ganging up on a target seat: unload on it, and only on it.
+		if (ctx.target !== undefined && seat !== ctx.target) {
+			if (win.seat !== ctx.target) {
+				const clean = legal.filter((c) => state.pts(c) <= 0);
+				if (clean.length > 0) return highest(clean);
+			} else {
+				const queen = legal.find(H.isQueenOfSpades);
+				if (queen) return queen;
+				const pointy = legal.filter((c) => state.pts(c) > 0);
+				if (pointy.length > 0) return pointy.reduce((a, b) => (state.pts(b) > state.pts(a) || (state.pts(b) === state.pts(a) && b.rank > a.rank) ? b : a));
+			}
+		}
+		// Void: a free discard. Stop a moon shot by keeping points away from
+		// the shooter; otherwise unload the most dangerous card.
+		if (threat !== null && win.seat === threat) {
+			const clean = legal.filter((c) => state.pts(c) <= 0);
+			if (clean.length > 0) return highest(clean);
+		}
+		const queen = legal.find(H.isQueenOfSpades);
+		if (queen) return queen;
+		if (!H.queenGone(state)) {
+			const bigSpade = legal.filter((c) => c.suit === H.SPADES && c.rank > 12);
+			if (bigSpade.length > 0) return highest(bigSpade);
+		}
+		const pointy = legal.filter((c) => state.pts(c) > 0);
+		if (pointy.length > 0) return pointy.reduce((a, b) => (state.pts(b) > state.pts(a) || (state.pts(b) === state.pts(a) && b.rank > a.rank) ? b : a));
+		return highest(legal);
+	}
+
+	const below = legal.filter((c) => c.rank < win.card.rank);
+	// Someone's running away with every point: take this trick to stop them.
+	if (threat !== null && win.seat === threat && trickPts > 0) {
+		const above = legal.filter((c) => c.rank > win.card.rank);
+		if (above.length > 0) return lowest(above);
+	}
+	// Spades with the queen in hand: drop her under the ace or king.
+	if (led === H.SPADES) {
+		const queen = legal.find(H.isQueenOfSpades);
+		if (queen && win.card.rank > 12) return queen;
+	}
+	if (trickPts > 0 || !last) {
+		// Points on the table (or more cards to come): duck as high as we safely can.
+		if (below.length > 0) {
+			// Avoid ducking with the queen when a higher spade might still follow.
+			const safe = below.filter((c) => !H.isQueenOfSpades(c));
+			if (safe.length > 0) return highest(safe);
+			return highest(below);
+		}
+		// Forced to win: win with the highest card, getting rid of it.
+		const nonQueen = legal.filter((c) => !H.isQueenOfSpades(c));
+		if (!last && nonQueen.length > 0 && trickPts === 0) return lowest(nonQueen);
+		return nonQueen.length > 0 ? highest(nonQueen) : highest(legal);
+	}
+	// Last to play on a clean trick: take it with our highest card (not the queen).
+	const nonQueen = legal.filter((c) => !H.isQueenOfSpades(c));
+	if (nonQueen.length > 0 && !ctx.rng.chance(0.15)) return highest(nonQueen);
+	return lowest(legal);
+}
+
+/** A mistake a real player makes: a card that's off but defensible. Never
+ *  the queen of spades thrown away, never a heart led for no reason, never
+ *  winning a trick full of points when a lower card would duck it. */
+function plausibleMistake(state: HandState, seat: number, legal: Card[], ctx: AIContext): Card {
+	// Nobody misses an obvious queen dump: under the ace or king of spades,
+	// or on someone else's trick when void.
+	const queen = legal.find(H.isQueenOfSpades);
+	if (queen && state.trick.length > 0) {
+		const win = H.trickWinner(state.trick);
+		const following = legal[0].suit === state.ledSuit;
+		if (!following || (state.ledSuit === H.SPADES && win.card.rank > 12)) return queen;
+	}
+	let pool = legal.filter((c) => !H.isQueenOfSpades(c));
+	if (state.trick.length === 0) {
+		const safe = pool.filter((c) => c.suit !== H.HEARTS);
+		if (safe.length) pool = safe;
+	} else {
+		const win = H.trickWinner(state.trick);
+		const pts = H.pointsIn(state.trick.map((p) => p.card), state.pts);
+		if (pts > 0 && legal[0].suit === state.ledSuit) {
+			const duck = pool.filter((c) => c.rank < win.card.rank);
+			if (duck.length) pool = duck;
+		}
+	}
+	if (pool.length === 0) pool = legal;
+	return pool[ctx.rng.int(1, pool.length) - 1];
+}
+
+/** Three cards to pass, with a person's kind of mistake: three of the six
+ *  most dangerous, not the best three. */
+export function choosePassPlausible(hand: Hand, rng: RNG, skill = DEFAULT_SKILL): Card[] {
+	const scored = hand.map((c) => ({ c, d: passDanger(c, hand) }));
+	luaSort(scored, (a, b) => (a.d !== b.d ? a.d > b.d : a.c.suit !== b.c.suit ? a.c.suit > b.c.suit : a.c.rank > b.c.rank));
+	if (!rng.chance(1 - skill)) return scored.slice(0, 3).map((x) => x.c);
+	return rng.sample(scored.slice(0, 6), 3).map((x) => x.c);
+}
+
+/** Choose a card for an AI seat. */
+export function chooseCard(state: HandState, seat: number, ctx: AIContext): Card {
+	const legal = H.legalPlays(state, seat);
+	if (legal.length === 1) return legal[0];
+	const skill = ctx.skill ?? DEFAULT_SKILL;
+	if (shooting(state, seat)) return chooseMoon(state, seat, legal);
+	if (ctx.rng.chance(1 - skill)) return ctx.plausible ? plausibleMistake(state, seat, legal, ctx) : legal[ctx.rng.int(1, legal.length) - 1];
+	if (state.trick.length === 0) return chooseLead(state, seat, legal);
+	return chooseFollow(state, seat, legal, ctx);
+}
+
+/** Play the rest of the hand with every seat on autopilot. The context can
+ *  differ by seat (a boss can make one seat play differently). */
+export function playOut(state: HandState, ctx: AIContext | ((seat: number) => AIContext)): HandState {
+	let guard = 0;
+	while (!state.complete) {
+		if (++guard > 60) throw new Error('playOut: did not terminate');
+		const seat = state.turn;
+		H.play(state, seat, chooseCard(state, seat, typeof ctx === 'function' ? ctx(seat) : ctx));
+	}
+	return state;
+}

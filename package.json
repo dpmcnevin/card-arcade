@@ -1,0 +1,17 @@
+{
+	"name": "card-arcade",
+	"private": true,
+	"version": "0.1.0",
+	"type": "module",
+	"description": "Card roguelikes in one style, on one engine: Shoot the Moon (hearts), Vulnerable (bridge) and Right Bower (euchre).",
+	"workspaces": [
+		"kit",
+		"arcade"
+	],
+	"scripts": {
+		"test": "npm -w kit test",
+		"check": "npm -w kit run check && npm -w arcade run check",
+		"dev": "npm -w arcade run dev --",
+		"build": "npm -w arcade run build --"
+	}
+}

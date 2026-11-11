@@ -1,0 +1,6 @@
+node_modules
+arcade/.svelte-kit
+arcade/build
+.DS_Store
+vite.config.ts.timestamp-*
+.claude/
