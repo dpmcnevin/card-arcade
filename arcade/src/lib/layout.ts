@@ -38,7 +38,9 @@ export interface Layout {
 	bannerY: number;
 }
 
-const HAND_H = 112 * 1.3;
+/** Your hand's card scale, and its height. */
+export const HAND_S = 1.5;
+const HAND_H = 112 * HAND_S;
 
 export const LANDSCAPE: Layout = (() => {
 	const W = 1280,
@@ -49,12 +51,12 @@ export const LANDSCAPE: Layout = (() => {
 		cy = 300;
 	return {
 		portrait: false, W, H, side, table, cx, cy,
-		handY: H - HAND_H / 2 - 22, handW: 880,
+		handY: H - HAND_H / 2 - 20, handW: 880,
 		northY: 72, westX: table.x + 60, eastX: table.x + table.w - 60,
 		deck: { x: table.x + table.w - 70, y: 640 },
-		label: { N: [cx, 16], S: [cx, 520], W: [table.x + 60, cy - 150], E: [table.x + table.w - 60, cy - 150] },
-		sortAt: [table.x + 30, 512], peekAt: [table.x + table.w - 24, 470], outAt: [table.x + table.w - 24, 420],
-		bannerY: 468
+		label: { N: [cx, 16], S: [cx, 484], W: [table.x + 60, cy - 150], E: [table.x + table.w - 60, cy - 150] },
+		sortAt: [table.x + 24, 446], peekAt: [table.x + table.w - 24, 470], outAt: [table.x + table.w - 24, 420],
+		bannerY: 450
 	};
 })();
 
@@ -71,7 +73,7 @@ export const PORTRAIT: Layout = (() => {
 		northY: table.y + 70, westX: 46, eastX: W - 46,
 		deck: { x: W - 70, y: H - 330 },
 		label: { N: [cx, table.y + 14], S: [cx, H - HAND_H - 90], W: [50, cy - 190], E: [W - 50, cy - 190] },
-		sortAt: [24, H - HAND_H - 96], peekAt: [W - 24, H - HAND_H - 140], outAt: [W - 24, H - HAND_H - 186],
+		sortAt: [24, H - HAND_H - 130], peekAt: [W - 24, H - HAND_H - 140], outAt: [W - 24, H - HAND_H - 186],
 		bannerY: cy + 180
 	};
 })();

@@ -10,6 +10,9 @@
 	import type { Card } from '$kit/src/core/rules/cards.ts';
 	import type { Pos } from '../games/types.ts';
 	import CardSprite from './CardSprite.svelte';
+	import Button from './Button.svelte';
+	import { HAND_S } from '../layout.ts';
+	import * as sound from '../audio/sound.ts';
 
 	const CW = 80,
 		CH = 112;
@@ -40,6 +43,9 @@
 		down?: (e: PointerEvent) => void;
 		dim?: boolean;
 		lift?: number;
+		r?: number;
+		hovered?: boolean;
+		idle?: number | null;
 		mine?: boolean;
 		/** A colored ring: the trick's winner, a card just passed to you. */
 		ring?: string;
@@ -58,13 +64,78 @@
 		return [(e.clientX - r.left) * k, (e.clientY - r.top) * k];
 	}
 
-	/** Your hand in your order (sorted, or as you dragged it). */
+	/** Your hand in your order: by suit (each low to high), by rank (low to
+	 *  high), or as you dragged it. */
 	function ordered(hand: Card[]): Card[] {
 		const o = arcade.order;
 		if (o.length && hand.every((c) => o.includes(key(c)))) return hand.slice().sort((a, b) => o.indexOf(key(a)) - o.indexOf(key(b)));
-		const bySuit = (a: Card, b: Card) => b.suit - a.suit || b.rank - a.rank;
-		const byRank = (a: Card, b: Card) => b.rank - a.rank || b.suit - a.suit;
+		const bySuit = (a: Card, b: Card) => b.suit - a.suit || a.rank - b.rank;
+		const byRank = (a: Card, b: Card) => a.rank - b.rank || b.suit - a.suit;
 		return hand.slice().sort(arcade.sortBy === 'rank' ? byRank : bySuit);
+	}
+
+	/** Where n cards of your hand go: a gentle arc, the middle highest. */
+	function fan(n: number) {
+		const w = CW * HAND_S,
+			h = CH * HAND_S;
+		const gap = n > 1 ? Math.min(62, (L.handW - w) / (n - 1)) : 0;
+		const x0 = CX - (w + gap * (n - 1)) / 2 + w / 2;
+		return {
+			w, h, gap, x0,
+			at: (i: number) => {
+				const k = i + 1 - (n + 1) / 2;
+				return { x: x0 + i * gap, y: L.handY + k * k * 0.5, r: k * 0.028 };
+			},
+			/** The place a card dropped at x would take. */
+			index: (x: number) => Math.max(0, Math.min(n - 1, Math.round((x - x0) / Math.max(1, gap))))
+		};
+	}
+
+	/** Your hand as shown: in order, with a dragged card already in its new place. */
+	const hand = $derived.by(() => {
+		void arcade.v;
+		const seat = view.seats.find((s) => s.pos === 'S');
+		if (!seat) return [] as Card[];
+		const list = ordered(seat.cards);
+		const d = drag;
+		if (!d?.moved) return list;
+		const card = list.find((c) => key(c) === d.k);
+		if (!card) return list;
+		const rest = list.filter((c) => c !== card);
+		rest.splice(fan(list.length).index(d.x), 0, card);
+		return rest;
+	});
+
+	// ---- the card under the pointer, and what a card in your hand does
+	let hover = $state<string | null>(null);
+	const picking = $derived(pre && !!arcade.ui!.pick);
+	const south = $derived(view.seats.find((s) => s.pos === 'S'));
+	function actionable(k: string): boolean {
+		if (arcade.busy) return false;
+		return picking || (!!south?.playable && view.legal.has(k));
+	}
+	function activate(c: Card) {
+		const k = key(c);
+		if (suppress || !actionable(k)) return;
+		if (picking) {
+			arcade.togglePick(k);
+			sound.play('select', { jitter: 0.1, volume: 0.6 });
+		} else arcade.game({ t: 'play', card: cards.code(c) });
+	}
+	let lastHover: string | null = null;
+	$effect(() => {
+		if (hover && hover !== lastHover) sound.play('card_hover', { jitter: 0.15, volume: 0.6 });
+		lastHover = hover;
+	});
+	$effect(() => {
+		// A hovered card that can no longer act (it was played, the turn passed) lets go.
+		void arcade.v;
+		if (hover && !actionable(hover)) hover = null;
+	});
+
+	function resort(by: 'suit' | 'rank') {
+		arcade.sort(by);
+		sound.play('card_play', { jitter: 0.1, volume: 0.5 });
 	}
 
 	const sprites = $derived.by(() => {
@@ -73,28 +144,29 @@
 		for (const seat of view.seats) {
 			const n = seat.cards.length;
 			if (seat.pos === 'S') {
-				const s = 1.3,
-					w = CW * s;
-				const hand = ordered(seat.cards);
-				const gap = n > 1 ? Math.min(58, (L.handW - w) / (n - 1)) : 0;
-				const x0 = CX - (w + gap * (n - 1)) / 2 + w / 2;
+				// Your hand: fanned; the card under the pointer rises, grows and
+				// straightens; picked cards stand up with a ploy-purple frame.
+				const f = fan(n);
+				const yourTurn = !pre && !arcade.busy && seat.playable && view.legal.size > 0;
 				hand.forEach((c, i) => {
 					const k = key(c);
-					const picking = pre && !!arcade.ui!.pick;
 					const legal = view.legal.has(k) && seat.playable;
 					const dragging = drag?.k === k && drag.moved;
+					const picked = arcade.picked.includes(k);
+					const hovered = hover === k && !drag?.moved;
+					const at = f.at(i);
 					out.push({
-						k, card: c, up: true, s, z: dragging ? 200 : 10 + i, order: n0 + i, mine: true,
-						x: dragging ? drag!.x : x0 + i * gap,
-						y: dragging ? drag!.y : L.handY,
-						lift: arcade.picked.includes(k) ? 26 : 0,
-						ring: view.ringed?.has(k) ? 'var(--good)' : undefined,
-						dim: !pre && !arcade.busy && view.legal.size > 0 && seat.playable && !legal,
-						click: picking ? () => arcade.togglePick(k) : legal && !arcade.busy ? () => arcade.game({ t: 'play', card: cards.code(c) }) : undefined,
-						down: (e) => {
-							const [x, y] = toStage(e);
-							drag = { k, x, y, sx: x, sy: y, moved: false };
-						}
+						k, card: c, up: true, order: n0 + i, mine: true,
+						s: HAND_S * (dragging ? 1.14 : hovered ? 1.1 : 1),
+						z: dragging ? 200 : hovered ? 45 : 10 + i,
+						x: dragging ? drag!.x : at.x,
+						y: dragging ? drag!.y : at.y,
+						r: dragging || hovered || picked ? 0 : at.r,
+						lift: picked ? 30 : hovered ? 22 : yourTurn && legal ? 8 : 0,
+						hovered,
+						idle: dragging ? null : (i + 1) * 0.7,
+						ring: picked ? 'var(--ploy)' : view.ringed?.has(k) ? 'var(--brass)' : hovered ? 'var(--brass)' : dragging && legal && drag!.y < L.handY - 90 ? 'var(--good)' : undefined,
+						dim: yourTurn && !legal
 					});
 				});
 			} else if (seat.pos === 'N') {
@@ -148,19 +220,15 @@
 		if (!d?.moved) return;
 		suppress = true;
 		setTimeout(() => (suppress = false), 0);
-		const hand = view.seats.find((s) => s.pos === 'S')!;
-		const card = hand.cards.find((c) => key(c) === d.k)!;
+		const seat = view.seats.find((s) => s.pos === 'S')!;
+		const card = seat.cards.find((c) => key(c) === d.k)!;
 		// Dropped on the table: play it, if you may.
-		if (d.y < L.handY - 90 && view.legal.has(d.k) && hand.playable && !arcade.busy) return arcade.game({ t: 'play', card: cards.code(card) });
+		if (d.y < L.handY - 90 && view.legal.has(d.k) && seat.playable && !arcade.busy) return arcade.game({ t: 'play', card: cards.code(card) });
 		// Otherwise, put it where it was dropped.
-		const rest = ordered(hand.cards).filter((c) => key(c) !== d.k);
-		const n = hand.cards.length,
-			w = CW * 1.3;
-		const gap = n > 1 ? Math.min(58, (L.handW - w) / (n - 1)) : 0;
-		const x0 = CX - (w + gap * (n - 1)) / 2 + w / 2;
-		const at = Math.max(0, Math.min(rest.length, Math.round((d.x - x0) / Math.max(1, gap))));
-		rest.splice(at, 0, card);
+		const rest = ordered(seat.cards).filter((c) => key(c) !== d.k);
+		rest.splice(fan(seat.cards.length).index(d.x), 0, card);
 		arcade.order = rest.map(key);
+		sound.play('card_play', { jitter: 0.08, volume: 0.6 });
 	}
 	const LABEL = $derived(L.label);
 </script>
@@ -185,6 +253,9 @@
 			x={sp.x}
 			y={sp.y}
 			s={sp.s}
+			r={sp.r}
+			hovered={sp.hovered}
+			idle={sp.idle}
 			z={sp.z}
 			faceUp={sp.up}
 			{back}
@@ -200,17 +271,42 @@
 			pointerdown={sp.down && !arcade.busy ? sp.down : undefined}
 		/>
 	{/each}
-	<div class="peek" style:right="{L.W - L.peekAt[0]}px" style:top="{L.peekAt[1]}px">
-		<button disabled={!view.lastTrick} onclick={() => (arcade.overlay = 'last')}>Last trick</button>
-		<button onclick={() => (arcade.overlay = 'deck')}>Deck</button>
-	</div>
-	{#if (view.seats.find((x) => x.pos === 'S')?.cards.length ?? 0) > 1}
-		<div class="sort" style:left="{L.sortAt[0]}px" style:top="{L.sortAt[1]}px">
-			<span>Sort</span>
-			<button class:on={arcade.sortBy === 'suit' && !arcade.order.length} onclick={() => arcade.sort('suit')}>Suit</button>
-			<button class:on={arcade.sortBy === 'rank' && !arcade.order.length} onclick={() => arcade.sort('rank')}>Rank</button>
-		</div>
+	<!-- Your hand's hit areas: a strip per card (the whole of the top one),
+	     so overlapping, tilted cards are easy to point at. -->
+	{#if south}
+		{@const f = fan(hand.length)}
+		{#each hand as c, i (key(c))}
+			{@const k = key(c)}
+			<button
+				class="slot"
+				class:act={actionable(k)}
+				aria-label={cards.name(c)}
+				style:left="{f.x0 - f.w / 2 + i * f.gap}px"
+				style:top="{L.handY - f.h / 2 - 30}px"
+				style:width="{i === hand.length - 1 ? f.w : f.gap}px"
+				style:height="{f.h + 30}px"
+				onpointerenter={(e) => e.pointerType === 'mouse' && actionable(k) && (hover = k)}
+				onpointerleave={(e) => e.pointerType === 'mouse' && hover === k && (hover = null)}
+				onpointerdown={(e) => {
+					if (arcade.busy) return;
+					const [x, y] = toStage(e);
+					drag = { k, x, y, sx: x, sy: y, moved: false };
+				}}
+				onclick={() => activate(c)}
+			></button>
+		{/each}
 	{/if}
+	<div class="peek" style:right="{L.W - L.peekAt[0]}px" style:top="{L.peekAt[1]}px">
+		<Button variant="plain" size="sm" enabled={!!view.lastTrick} title="The last trick, card by card" onclick={() => (arcade.overlay = 'last')}>Last trick</Button>
+	</div>
+	<div class="sort" style:left="{L.sortAt[0]}px" style:top="{L.sortAt[1]}px">
+		{#if hand.length > 1}
+			<span>Sort</span>
+			<Button variant={arcade.sortBy === 'suit' && !arcade.order.length ? 'brass' : 'plain'} size="sm" sound={false} title="Sort your hand by suit, each low to high" onclick={() => resort('suit')} style="width: 62px">Suit</Button>
+			<Button variant={arcade.sortBy === 'rank' && !arcade.order.length ? 'brass' : 'plain'} size="sm" sound={false} title="Sort your hand by rank, low to high" onclick={() => resort('rank')} style="width: 62px">Rank</Button>
+		{/if}
+		<Button variant="plain" size="sm" title="The whole deck, with what's been played" onclick={() => (arcade.overlay = 'deck')} style="width: 62px; margin-left: 8px">Deck</Button>
+	</div>
 </div>
 
 <style>
@@ -226,18 +322,20 @@
 		gap: 6px;
 		z-index: 70;
 	}
-	.peek button {
-		font: inherit;
-		font-size: 14px;
-		padding: 4px 12px;
+	.slot {
+		position: absolute;
+		z-index: 90;
+		padding: 0;
 		border: none;
-		background: var(--panel-edge);
-		color: var(--ink);
+		background: none;
+		touch-action: none;
+		cursor: grab;
+	}
+	.slot.act {
 		cursor: pointer;
 	}
-	.peek button:disabled {
-		color: var(--ink-faint);
-		cursor: default;
+	.slot:focus-visible {
+		outline: 2px solid var(--brass);
 	}
 	.sort {
 		position: absolute;
@@ -250,19 +348,7 @@
 		font-size: 15px;
 		z-index: 70;
 	}
-	.sort button {
-		font: inherit;
-		font-size: 14px;
-		padding: 3px 12px;
-		border: none;
-		background: var(--panel-edge);
-		color: var(--ink);
-		cursor: pointer;
-	}
-	.sort button.on {
-		background: var(--brass);
-		color: var(--bg);
-	}
+
 	.label {
 		position: absolute;
 		transform: translateX(-50%);

@@ -28,6 +28,9 @@
 		x,
 		y,
 		s,
+		r = 0,
+		hovered = false,
+		idle = null,
 		faceUp,
 		z,
 		back,
@@ -46,6 +49,12 @@
 		x: number;
 		y: number;
 		s: number;
+		/** Rotation in radians (a fanned hand). */
+		r?: number;
+		/** Under the pointer: a quick wobble each time it becomes so. */
+		hovered?: boolean;
+		/** Phase of a gentle idle sway, or null for none. */
+		idle?: number | null;
 		faceUp: boolean;
 		z: number;
 		back: string;
@@ -63,9 +72,9 @@
 
 	const CW = 80,
 		CH = 112;
-	const init = untrack(() => ({ x: spawn?.x ?? x, y: spawn?.y ?? y, s: snap(s), face: spawn?.faceUp ?? faceUp, delay: spawn?.delay ?? 0, sound: !!spawn?.sound }));
+	const init = untrack(() => ({ x: spawn?.x ?? x, y: spawn?.y ?? y, r, s: snap(s), face: spawn?.faceUp ?? faceUp, delay: spawn?.delay ?? 0, sound: !!spawn?.sound }));
 
-	const pos = new Spring({ x: init.x, y: init.y, s: init.s }, { stiffness: 0.12, damping: 0.62 });
+	const pos = new Spring({ x: init.x, y: init.y, r: init.r, s: init.s }, { stiffness: 0.12, damping: 0.62 });
 	const turn = new Spring(init.face ? 0 : 180, { stiffness: 0.1, damping: 0.62 });
 	let launched = $state(init.delay <= 0);
 	let face = $state(init.face);
@@ -80,7 +89,7 @@
 	});
 
 	$effect(() => {
-		const target = { x, y: y - lift, s: snap(s) };
+		const target = { x, y: y - lift, r, s: snap(s) };
 		if (launched) pos.target = target;
 	});
 
@@ -99,6 +108,11 @@
 	const px = $derived(artPixels(s));
 	const front = $derived(cardFace(card, trump, px));
 	const backImg = $derived(cardBack(back, px));
+	// Restart the wobble each time the card comes under the pointer.
+	let wobbleKey = $state(0);
+	$effect(() => {
+		if (hovered) wobbleKey = untrack(() => wobbleKey) + 1;
+	});
 	const w = $derived(CW * pos.current.s),
 		h = $derived(CH * pos.current.s);
 </script>
@@ -111,7 +125,7 @@
 	style:z-index={z}
 	style:width="{w}px"
 	style:height="{h}px"
-	style:transform="translate3d({Math.round(pos.current.x - w / 2)}px, {Math.round(pos.current.y - h / 2)}px, 0)"
+	style:transform="translate3d({Math.round(pos.current.x - w / 2)}px, {Math.round(pos.current.y - h / 2)}px, 0){Math.abs(pos.current.r) > 0.002 ? ` rotate(${pos.current.r}rad)` : ''}"
 	onclick={click}
 	onpointerdown={pointerdown}
 	out:fade={{ duration: 220 }}
@@ -127,7 +141,9 @@
 	{#snippet backFace(turned: boolean)}
 		<div class="face back" class:turned><img src={backImg} alt="" draggable="false" /></div>
 	{/snippet}
-	<div class="flipper">
+	<div class="sway" class:idle={idle != null} style:animation-delay={idle != null ? `${-idle * 0.77}s` : undefined}>
+	{#key wobbleKey}
+	<div class="flipper" class:wobble={wobbleKey > 0}>
 		{#if turn.current > 0.5 && turn.current < 179.5}
 			<!-- Mid-flip: both sides in 3D. -->
 			<div class="turner" style:transform="rotateY({turn.current}deg)">
@@ -140,6 +156,8 @@
 			{@render backFace(false)}
 		{/if}
 	</div>
+	{/key}
+	</div>
 </div>
 
 <style>
@@ -147,6 +165,7 @@
 		position: absolute;
 		left: 0;
 		top: 0;
+		transform-origin: 50% 50%;
 		will-change: transform;
 	}
 	.hidden {
@@ -157,6 +176,48 @@
 	}
 	.click:hover .flipper {
 		translate: 0 -10px;
+	}
+	.sway {
+		width: 100%;
+		height: 100%;
+	}
+	.sway.idle {
+		animation: sway 4.83s ease-in-out infinite;
+	}
+	@keyframes sway {
+		0%,
+		100% {
+			transform: rotate(-0.46deg);
+		}
+		50% {
+			transform: rotate(0.46deg);
+		}
+	}
+	.flipper.wobble {
+		animation: wobble 0.34s linear;
+	}
+	@keyframes wobble {
+		0% {
+			transform: rotate(0);
+		}
+		20% {
+			transform: rotate(3.5deg);
+		}
+		45% {
+			transform: rotate(-2.6deg);
+		}
+		70% {
+			transform: rotate(1.4deg);
+		}
+		100% {
+			transform: rotate(0);
+		}
+	}
+	@media (prefers-reduced-motion: reduce) {
+		.sway.idle,
+		.flipper.wobble {
+			animation: none;
+		}
 	}
 	.flipper {
 		position: relative;
