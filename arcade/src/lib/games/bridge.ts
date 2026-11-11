@@ -39,6 +39,25 @@ export const bridgeUI: GameUI = {
 	back: 'royal',
 	view: view as GameUI['view'],
 	Pre: BridgeBid,
+	handInfo(run) {
+		const d = run.hand as Deal;
+		if (!d.contract) return { title: 'This deal · bidding', rows: [{ label: 'Partner', value: d.partnerInfo.range.name }, { label: 'Your HCP', value: String(cards.hcp(d.hands[d.declarer])) }] };
+		const st = d.state!;
+		const need = 6 + d.contract.level;
+		return {
+			title: `This deal · ${cards.contractName(d.contract)}${d.contract.doubled ? ' doubled' : ''}`,
+			rows: [
+				{ label: 'You', value: String(st.nsTricks), hot: st.nsTricks >= need },
+				{ label: 'Need', value: String(need) },
+				{ label: 'They', value: String(st.ewTricks) }
+			]
+		};
+	},
+	scoreLine(run) {
+		const d = run.hand as Deal;
+		const st = d.state;
+		return st && d.contract ? `${cards.contractName(d.contract)} · you took ${st.nsTricks} of 13 · needed ${6 + d.contract.level}` : '';
+	},
 	help: [
 		{ title: 'The deal', text: 'You declare every deal from South and play dummy (North) too, against two defenders. Partner’s hand is shown only as a bid: a point range, a long suit, balanced or not.' },
 		{ title: 'Bidding', text: 'Pick a contract: a level (tricks over six) and a strain. The grid shows each contract’s chance of making and the least it would score; the star is the recommended bid. Bid too high and the defenders may double you.' },

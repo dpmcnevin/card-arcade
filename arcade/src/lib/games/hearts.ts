@@ -45,6 +45,22 @@ export const heartsUI: GameUI = {
 	back: 'standard',
 	view: view as GameUI['view'],
 	Pre: HeartsPass,
+	handInfo(run) {
+		const h = run.hand as HeartsHand;
+		const st = h.state;
+		const pts = st ? H.pointsTaken(st) : [0, 0, 0, 0, 0];
+		const pass = h.passDir === 'hold' ? 'No passing' : `Pass ${h.passDir} to ${H.SEAT_NAMES[H.passTarget(H.PLAYER, h.passDir)]}`;
+		return {
+			title: `This hand · ${pass}`,
+			rows: [3, 4, 1, 2].map((s) => ({ label: s === H.PLAYER ? 'You' : H.SEAT_NAMES[s], value: String(pts[s]), hot: s === H.PLAYER && pts[s] > 0 }))
+		};
+	},
+	scoreLine(run) {
+		const st = (run.hand as HeartsHand).state;
+		if (!st) return '';
+		const pts = H.pointsTaken(st);
+		return [3, 4, 1, 2].map((s) => `${s === H.PLAYER ? 'You' : H.SEAT_NAMES[s]} ${pts[s]}`).join(' · ');
+	},
 	cue(run, memo) {
 		const st = (run.hand as HeartsHand).state;
 		if (!st) return null;

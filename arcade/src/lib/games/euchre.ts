@@ -44,6 +44,23 @@ export const euchreUI: GameUI = {
 	back: 'collector',
 	view: view as GameUI['view'],
 	Pre: EuchreCall,
+	handInfo(run) {
+		const h = run.hand as EuchreHand;
+		if (h.trump === null) return { title: `This hand · ${seatName(h.dealer)} dealt`, rows: [{ label: 'Turned up', value: cards.name(h.upcard) }] };
+		return {
+			title: `This hand · ${cards.SUITS[h.trump].name} trump`,
+			rows: [
+				{ label: 'Makers', value: `${seatName(h.maker!)}${h.alone ? ' alone' : ''}` },
+				{ label: 'Your side', value: String(E.tricksFor(h, E.PLAYER)), hot: E.tricksFor(h, E.PLAYER) >= 3 },
+				{ label: 'Theirs', value: String(5 - E.tricksFor(h, E.PLAYER) - (5 - h.tricks.length)) }
+			]
+		};
+	},
+	scoreLine(run) {
+		const h = run.hand as EuchreHand;
+		const [us, them] = E.points(h);
+		return `${seatName(h.maker!)} made ${cards.SUITS[h.trump!].name.toLowerCase()} · your side took ${E.tricksFor(h, E.PLAYER)} · game points ${us}–${them}`;
+	},
 	help: [
 		{ title: 'The hand', text: 'Twenty-four cards, nine to ace; you and partner (North) against East and West, five cards each. A card is turned up: order it up as trump, or pass; in the second round name another suit. The dealer is stuck and must name one.' },
 		{ title: 'Trumps', text: 'The jack of trumps (the right bower) is highest, then the other jack of the same color (the left bower, which counts as a trump), then A K Q 10 9. Follow the led suit if you can.' },

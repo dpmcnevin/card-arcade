@@ -74,6 +74,7 @@
 <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
 <div class="panel" class:bad={!b.made} onclick={() => !done && land()}>
 	<h2>{b.title}</h2>
+	{#if arcade.ui?.scoreLine}<div class="sum">{arcade.ui.scoreLine(run)}</div>{/if}
 	<div class="lines">
 		{#each b.lines.slice(0, shown) as l}
 			<div class="line" in:fly={{ x: -24, duration: 200, easing: cubicOut }}>
@@ -132,6 +133,11 @@
 		margin: 0 0 6px;
 		color: var(--brass);
 		font-size: 30px;
+	}
+	.sum {
+		margin-top: -6px;
+		color: var(--ink-dim);
+		font-size: 15px;
 	}
 	.lines {
 		min-height: 120px;

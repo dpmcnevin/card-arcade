@@ -68,6 +68,11 @@ export interface GameUI {
 	/** The game's own moments after each move (hearts broken, the queen):
 	 *  `memo` keeps what it needs between calls (reset each hand). */
 	cue?(run: Run, memo: Record<string, any>): { toast?: string; tone?: 'good' | 'bad'; sound?: string; shake?: number } | null;
+	/** This hand at a glance, for the sidebar: a heading and label/value rows
+	 *  (Hearts: the pass and each seat's points; Bridge: the contract). */
+	handInfo?(run: Run): { title: string; rows: { label: string; value: string; hot?: boolean }[] } | null;
+	/** One line under a hand's score title (who took what). */
+	scoreLine?(run: Run): string;
 	/** How to play this game: titled sections for the help screen. */
 	help: { title: string; text: string }[];
 	/** In the pre-play step, picking this many cards from your hand. */

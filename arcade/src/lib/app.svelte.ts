@@ -178,7 +178,7 @@ class Arcade {
 	private async pump() {
 		const run = this.run!,
 			ui = this.ui!;
-		const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+		const sleep = (ms: number) => this.pause(ms);
 		this.busy = true;
 		try {
 			for (let guard = 0; guard < 80; guard++) {
@@ -220,6 +220,43 @@ class Arcade {
 	hold = $state(false);
 	/** A finished trick sliding to whoever took it. */
 	sweep = $state(false);
+	/** The player asked to hurry: the current pause ends now. */
+	private hurry: (() => void) | null = null;
+
+	/** A pause the player can cut short (a tap, Space). */
+	private pause(ms: number): Promise<void> {
+		return new Promise((done) => {
+			const t = setTimeout(() => ((this.hurry = null), done()), ms);
+			this.hurry = () => {
+				clearTimeout(t);
+				this.hurry = null;
+				done();
+			};
+		});
+	}
+
+	/** Hurry the other seats or a held trick along. True if there was anything to hurry. */
+	skip(): boolean {
+		if (!this.hurry) return false;
+		this.hurry();
+		return true;
+	}
+
+	/** Space or Enter: the obvious next step. */
+	advance() {
+		const run = this.run;
+		if (!run || this.screen !== 'run') return;
+		if (this.skip()) return;
+		if (this.overlay) return;
+		if (run.phase === R.PHASE.SCORED && !this.hold) this.do({ t: 'next' });
+		else if (run.phase === R.PHASE.WON) this.do({ t: 'shop' });
+	}
+
+	/** Escape: close what's open, else back to the menu. */
+	escape() {
+		if (this.overlay) this.overlay = null;
+		else if (this.screen === 'run') this.toMenu();
+	}
 
 	private async sweepTrick(sleep: (ms: number) => Promise<unknown>) {
 		this.sweep = true;

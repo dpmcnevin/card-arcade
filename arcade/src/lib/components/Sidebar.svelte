@@ -5,6 +5,7 @@
 	import * as R from '$kit/src/run/run.ts';
 	import Icon from './Icon.svelte';
 	import Shine from './Shine.svelte';
+	import Count from './Count.svelte';
 	import RelicInfo from './RelicInfo.svelte';
 	let reading = $state<string | null>(null);
 	/** A held ploy whose details are open (tap to read, then Use). */
@@ -16,6 +17,7 @@
 	import { settings } from '../settings.svelte.ts';
 
 	const run = $derived((void arcade.v, arcade.run!));
+	const info = $derived((void arcade.v, arcade.ui!.handInfo?.(arcade.run!) ?? null));
 	const m = $derived(run.module);
 	const levels = $derived(m.upgrades);
 </script>
@@ -30,7 +32,7 @@
 	<!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
 	<div class="goal open" onclick={() => (arcade.overlay = 'table')}>
 		<div class="row dim"><span>Goal</span><span>Scored</span></div>
-		<div class="row big"><span>{run.target}</span><span class:good={run.score >= run.target}>{run.score}</span></div>
+		<div class="row big"><span>{run.target.toLocaleString()}</span><span class:good={run.score >= run.target}><Count value={run.score} /></span></div>
 		<div class="bar"><div style:width="{Math.min(100, (100 * run.score) / Math.max(1, run.target))}%"></div></div>
 		<div class="row dim hands">
 			<span>{m.words.hands} left</span>
@@ -38,7 +40,15 @@
 			<span>{run.handsLeft} of {run.handsThisBoard}</span>
 		</div>
 	</div>
-	<div class="row"><span class="dim">Money</span><span class="money">${run.money}</span></div>
+	{#if info && (run.phase === R.PHASE.PRE || run.phase === R.PHASE.PLAY || run.phase === R.PHASE.SCORED)}
+		<div class="info">
+			<div class="it">{info.title}</div>
+			<div class="ir">
+				{#each info.rows as r}<div class:hot={r.hot}><span>{r.label}</span><b>{r.value}</b></div>{/each}
+			</div>
+		</div>
+	{/if}
+	<div class="row"><span class="dim">Money</span><span class="money"><Count value={run.money} prefix="$" /></span></div>
 	{#if run.boss}
 		<!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
 		<div class="boss open" class:on={R.bossActive(run)} title={run.boss.text} onclick={() => (arcade.overlay = 'table')}>
@@ -225,6 +235,36 @@
 		color: var(--brass);
 		font-size: 26px;
 		font-weight: 700;
+	}
+	.info {
+		font-size: 13px;
+	}
+	.it {
+		color: var(--ink-dim);
+		margin-bottom: 4px;
+	}
+	.ir {
+		display: flex;
+		gap: 4px;
+	}
+	.ir div {
+		flex: 1;
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		padding: 3px 0;
+		background: var(--panel);
+		border: 1px solid var(--panel-edge);
+	}
+	.ir span {
+		color: var(--ink-dim);
+		font-size: 11px;
+	}
+	.ir b {
+		font-size: 17px;
+	}
+	.ir .hot b {
+		color: var(--bad);
 	}
 	.boss {
 		display: flex;

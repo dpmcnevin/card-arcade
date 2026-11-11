@@ -38,10 +38,30 @@
 	const boardKey = $derived((void arcade.v, run ? `${run.table}.${run.board}` : ''));
 	const fresh = $derived((void arcade.v, !!run && (run.phase === R.PHASE.PRE || run.phase === R.PHASE.PLAY) && run.handsLeft === run.handsThisBoard && run.score === 0));
 	const ui = $derived(arcade.ui);
+
+	function onKey(e: KeyboardEvent) {
+		sound.unlock();
+		if ((e.target as HTMLElement)?.tagName === 'INPUT') return;
+		const k = e.key.toLowerCase();
+		if (k === ' ' || k === 'enter') {
+			e.preventDefault();
+			arcade.advance();
+		} else if (k === 'escape') arcade.escape();
+		else if (k === 'm') sound.toggleMusic();
+	}
 </script>
 
 <!-- Browsers allow sound only after a gesture. -->
-<svelte:window bind:innerWidth={w} bind:innerHeight={h} onpointerdown={() => sound.unlock()} onkeydown={() => sound.unlock()} />
+<svelte:window
+	bind:innerWidth={w}
+	bind:innerHeight={h}
+	onpointerdown={(e) => {
+		sound.unlock();
+		// A tap anywhere hurries the other seats or a held trick (a card still plays).
+		if (arcade.busy && !(e.target as HTMLElement)?.closest?.('.sprite.click, button, .pop')) arcade.skip();
+	}}
+	onkeydown={onKey}
+/>
 
 <div class="wrap">
 	<div class="stage" class:smooth={!settings.pixel} class:portrait={L.portrait} style="{cssVars(L)}; width: {L.W}px; height: {L.H}px" style:transform="scale({scale}) translate({fx.shakeX}px, {fx.shakeY}px)">
