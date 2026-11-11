@@ -35,6 +35,8 @@ export interface TableView {
 	isTrump?: (c: Card) => boolean;
 	/** A line over the table (the contract, the pass). */
 	banner?: string;
+	/** Cards in your hand to ring (Hearts: the ones just passed to you). */
+	ringed?: Set<string>;
 	/** Trick cards to keep face down (the Fog). */
 	hidden?: Set<string>;
 	/** The trick shown is a finished one (no card led to the next yet). */

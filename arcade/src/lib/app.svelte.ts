@@ -187,13 +187,18 @@ class Arcade {
 					if (done && run.phase === R.PHASE.SCORED) {
 						this.hold = true;
 						this.v++;
-						await sleep(1100 / settings.speed);
+						await sleep(850 / settings.speed);
+						await this.sweepTrick(sleep);
 						this.hold = false;
 					}
 					break;
 				}
 				if (!R.aiToMove(run)) break;
-				await sleep((done ? 1000 : 430) / settings.speed);
+				if (done) {
+					// See who took it, then the cards go to them.
+					await sleep(750 / settings.speed);
+					await this.sweepTrick(sleep);
+				} else await sleep(430 / settings.speed);
 				if (this.run !== run) return;
 				const before = run.phase;
 				const r = R.stepAI(run);
@@ -213,6 +218,16 @@ class Arcade {
 
 	/** Holding the last trick of a hand: the score panel waits. */
 	hold = $state(false);
+	/** A finished trick sliding to whoever took it. */
+	sweep = $state(false);
+
+	private async sweepTrick(sleep: (ms: number) => Promise<unknown>) {
+		this.sweep = true;
+		this.v++;
+		sound.play('deal', { volume: 0.5, pitch: 0.85 });
+		await sleep(320 / settings.speed);
+		this.sweep = false;
+	}
 
 	game(a: unknown) {
 		this.do({ t: 'game', a });

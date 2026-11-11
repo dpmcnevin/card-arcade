@@ -41,6 +41,8 @@
 		dim?: boolean;
 		lift?: number;
 		mine?: boolean;
+		/** A colored ring: the trick's winner, a card just passed to you. */
+		ring?: string;
 	}
 
 	const TRICK: Record<Pos, [number, number]> = { N: [0, -96], S: [0, 96], W: [-130, 0], E: [130, 0] };
@@ -86,6 +88,7 @@
 						x: dragging ? drag!.x : x0 + i * gap,
 						y: dragging ? drag!.y : L.handY,
 						lift: arcade.picked.includes(k) ? 26 : 0,
+						ring: view.ringed?.has(k) ? 'var(--good)' : undefined,
 						dim: !pre && !arcade.busy && view.legal.size > 0 && seat.playable && !legal,
 						click: picking ? () => arcade.togglePick(k) : legal && !arcade.busy ? () => arcade.game({ t: 'play', card: cards.code(c) }) : undefined,
 						down: (e) => {
@@ -114,9 +117,21 @@
 			}
 			n0 += n;
 		}
+		// The trick; once finished, its winner's card is ringed, and then it
+		// slides to their seat.
+		const winner = view.trickDone ? view.lastTrick?.winner : undefined;
+		const SEAT: Record<Pos, [number, number]> = { N: [CX, L.northY], S: [CX, L.handY - 40], W: [L.westX, CY], E: [L.eastX, CY] };
 		view.trick.forEach((t, i) => {
 			const [dx, dy] = TRICK[t.pos];
-			out.push({ k: key(t.card), card: t.card, up: !view.hidden?.has(key(t.card)), x: CX + dx, y: CY + dy, s: 1.15, z: 50 + i, order: 0 });
+			const going = arcade.sweep && winner;
+			out.push({
+				k: key(t.card), card: t.card, up: !view.hidden?.has(key(t.card)), order: 0,
+				x: going ? SEAT[winner][0] : CX + dx,
+				y: going ? SEAT[winner][1] : CY + dy,
+				s: going ? 0.6 : 1.15,
+				z: 50 + i,
+				ring: winner === t.pos && !going ? 'var(--brass)' : undefined
+			});
 		});
 		return out;
 	});
@@ -175,6 +190,7 @@
 			{back}
 			lift={sp.lift}
 			dim={sp.dim}
+			highlight={sp.ring}
 			trump={sp.up && (view.isTrump ? view.isTrump(sp.card) : view.trump === sp.card.suit)}
 			edition={sp.up ? R.mod(run, sp.card).edition : undefined}
 			seal={sp.up ? R.sealOf(run, sp.card) : undefined}

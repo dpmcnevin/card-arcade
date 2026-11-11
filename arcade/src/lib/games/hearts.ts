@@ -27,6 +27,8 @@ function view(run: Run<HeartsHand>): TableView {
 	return {
 		seats,
 		trick: shown.map((p) => ({ pos: POS[p.seat], card: p.card })),
+		// The cards passed to you, ringed until the first trick is done.
+		ringed: st && st.tricks.length === 0 ? new Set(h.received.map((c) => `${c.suit}-${c.rank}`)) : undefined,
 		// The Fog: cards after the lead stay face down until the trick is done.
 		hidden: R.bossIs(run, 'fog') && st && st.trick.length ? new Set(st.trick.slice(1).filter((p) => p.seat !== H.PLAYER).map((p) => `${p.card.suit}-${p.card.rank}`)) : undefined,
 		trickDone: !!st && !st.trick.length && st.tricks.length > 0,
@@ -50,6 +52,16 @@ export const heartsUI: GameUI = {
 		if (st.heartsBroken && !memo.broken) {
 			memo.broken = true;
 			Object.assign(out, { toast: 'Hearts are broken!', tone: 'bad', sound: 'hearts_broken' });
+		}
+		// Someone is taking every point so far: the moon may be on.
+		const on = st.tricks.length >= 5 ? H.moonOnCourse(st) : null;
+		if (on !== null && on !== H.PLAYER && !memo.moon) {
+			memo.moon = true;
+			return { toast: `${H.SEAT_NAMES[on]} is going for the moon!`, tone: 'bad', sound: 'doubled' };
+		}
+		if (on === H.PLAYER && !memo.myMoon) {
+			memo.myMoon = true;
+			return { toast: 'You have every point so far: shoot the moon?', tone: 'good', sound: 'mult' };
 		}
 		const queen = st.played.find((p) => H.isQueenOfSpades(p.card));
 		if (queen && !memo.queen) {

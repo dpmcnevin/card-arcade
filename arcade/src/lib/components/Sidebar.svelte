@@ -7,6 +7,8 @@
 	import Shine from './Shine.svelte';
 	import RelicInfo from './RelicInfo.svelte';
 	let reading = $state<string | null>(null);
+	/** A held ploy whose details are open (tap to read, then Use). */
+	let ploy = $state<number | null>(null);
 	import { TAGS } from '$kit/src/run/content.ts';
 	import Button from './Button.svelte';
 	import * as sound from '../audio/sound.ts';
@@ -60,7 +62,7 @@
 		{#each run.ploys as key, i}
 			{@const def = R.ployDef(run, key)!}
 			{@const ok = R.canUsePloy(run, i)}
-			<Button variant="ploy" size="sm" enabled={ok[0]} title={def.text} onclick={() => arcade.do({ t: 'ploy', slot: i })} style="width: 100%">{def.name}</Button>
+			<Button variant="ploy" size="sm" title={def.text} onclick={() => (ploy = ploy === i ? null : i)} style="width: 100%; {ok[0] ? '' : 'opacity: 0.6'}">{def.name}</Button>
 		{/each}
 	</div>
 
@@ -74,6 +76,19 @@
 
 	<div class="grow"></div>
 	<SpeedSlider />
+	{#if ploy !== null && run.ploys[ploy]}
+		{@const def = R.ployDef(run, run.ploys[ploy])!}
+		{@const ok = R.canUsePloy(run, ploy)}
+		<div class="pop ploypop">
+			<div class="pk">Ploy · one use</div>
+			<h3>{def.name}</h3>
+			<p>{def.text}.</p>
+			<div class="pb">
+				<Button variant="ploy" size="sm" enabled={ok[0]} onclick={() => { const s = ploy!; ploy = null; arcade.do({ t: 'ploy', slot: s }); }} style="width: 100%">{ok[0] ? 'Use it' : ok[1]}</Button>
+				<Button variant="plain" size="sm" onclick={() => (ploy = null)} style="width: 100%">Keep</Button>
+			</div>
+		</div>
+	{/if}
 	{#if reading && run.relics.find((r) => r.key === reading)}
 		<!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
 		<div class="pop" onclick={() => (reading = null)}><RelicInfo relic={run.relics.find((r) => r.key === reading)!} note={R.bossActive(run) && run.jinxed === reading ? 'Jinxed this board' : undefined} /></div>
@@ -280,6 +295,32 @@
 		top: 300px;
 		z-index: 160;
 		cursor: pointer;
+	}
+	.ploypop {
+		width: 250px;
+		padding: 10px 14px 12px;
+		background: var(--panel);
+		border: 2px solid var(--ploy);
+		box-shadow: 0 6px 0 rgba(0, 0, 0, 0.45);
+		cursor: default;
+	}
+	.pk {
+		font-size: 12px;
+		color: var(--ploy-light);
+	}
+	.ploypop h3 {
+		margin: 2px 0 4px;
+		font-size: 18px;
+	}
+	.ploypop p {
+		margin: 0 0 10px;
+		font-size: 14px;
+		color: var(--ink-dim);
+	}
+	.pb {
+		display: grid;
+		grid-template-columns: 1fr 1fr;
+		gap: 6px;
 	}
 	:global(.stage.portrait) .pop {
 		left: 16px;
