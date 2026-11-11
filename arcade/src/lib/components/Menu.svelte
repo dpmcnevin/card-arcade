@@ -69,12 +69,12 @@
 	<div class="titlerow">
 		<div class="fan left">{#each FAN.slice(0, 2) as f, i}{@const k = i + 0}<!-- svelte-ignore a11y_no_static_element_interactions -->
 			<span class="fc" class:held={drag?.k === k} style:transform="translate({moved[k].x}px, {moved[k].y}px) rotate({drag?.k === k ? 0 : -14 + i * 10}deg)" onpointerdown={(e) => grab(e, k)}>
-				{#if up[k]}<Shine edition={f.edition}><img src={cardFace(f.card)} alt="" draggable="false" /></Shine>{:else}<img src={cardBack('standard')} alt="" draggable="false" />{/if}
+				<span class="wob" style:animation-delay="{-k * 1.3}s">{#if up[k]}<Shine edition={f.edition}><img src={cardFace(f.card)} alt="" draggable="false" /></Shine>{:else}<img src={cardBack('standard')} alt="" draggable="false" />{/if}</span>
 			</span>{/each}</div>
 		<h1>{solo ? solo.module.title.toUpperCase() : 'CARD ARCADE'}</h1>
 		<div class="fan right">{#each FAN.slice(2) as f, i}{@const k = i + 2}<!-- svelte-ignore a11y_no_static_element_interactions -->
 			<span class="fc" class:held={drag?.k === k} style:transform="translate({moved[k].x}px, {moved[k].y}px) rotate({drag?.k === k ? 0 : 4 + i * 10}deg)" onpointerdown={(e) => grab(e, k)}>
-				{#if up[k]}<Shine edition={f.edition}><img src={cardFace(f.card)} alt="" draggable="false" /></Shine>{:else}<img src={cardBack('standard')} alt="" draggable="false" />{/if}
+				<span class="wob" style:animation-delay="{-k * 1.3}s">{#if up[k]}<Shine edition={f.edition}><img src={cardFace(f.card)} alt="" draggable="false" /></Shine>{:else}<img src={cardBack('standard')} alt="" draggable="false" />{/if}</span>
 			</span>{/each}</div>
 	</div>
 	{#if solo}
@@ -135,6 +135,30 @@
 		height: 78px;
 		display: block;
 		image-rendering: pixelated;
+	}
+	/* An idle sway, each card out of step; a bigger wiggle under the pointer. */
+	.wob {
+		display: inline-flex;
+		animation: sway 4.2s ease-in-out infinite;
+	}
+	.fc:hover .wob {
+		animation: wiggle 0.5s ease-in-out;
+	}
+	.fc.held .wob {
+		animation: none;
+	}
+	@keyframes sway {
+		0%, 100% { transform: translateY(0) rotate(-2.5deg); }
+		50% { transform: translateY(-5px) rotate(2.5deg); }
+	}
+	@keyframes wiggle {
+		0%, 100% { transform: rotate(0) scale(1.06); }
+		25% { transform: rotate(-6deg) scale(1.08); }
+		50% { transform: rotate(5deg) scale(1.08); }
+		75% { transform: rotate(-3deg) scale(1.07); }
+	}
+	@media (prefers-reduced-motion: reduce) {
+		.wob, .fc:hover .wob { animation: none; }
 	}
 	.fc.held {
 		cursor: grabbing;
