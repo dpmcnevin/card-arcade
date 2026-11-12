@@ -51,6 +51,25 @@ export interface WhistCtx {
 	/** All such tricks this run (Penny Ante's mult). */
 	penniesThisRun: number;
 	handsThisBoard: number;
+	/** Tricks you won with a trump ranked 15-20, or 10-14. */
+	highWins: number;
+	midWins: number;
+	/** You took every trick in the round. */
+	wonAll: boolean;
+	/** You used a ploy (Second Sight, Hedge or Loophole) this round. */
+	usedPloy: boolean;
+	/** You used Second Sight this round. */
+	usedSpy: boolean;
+	/** The cards dealt went up, or down, from last round. */
+	rising: boolean;
+	falling: boolean;
+	/** Relics you hold, and how many carry an edition. */
+	relicCount: number;
+	editionCount: number;
+	/** Your money right now. */
+	money: number;
+	/** Rounds you've made this run, counting this one. */
+	totalMade: number;
 }
 
 const TABLE_BASE = [70, 120, 180, 260, 370, 510, 690, 920];
@@ -82,17 +101,21 @@ function aiStep(h: WhistHand) {
 function ctx(run: Run<WhistHand>): WhistCtx {
 	const h = run.hand;
 	const mine = h.tricks.filter((t) => t.winner === W.PLAYER).map((t) => t.plays.find((p) => p.seat === W.PLAYER)!);
+	// The Fixer: a relic that forgives being off by one, like Hedge, for free.
+	const hedge = !!h.hedge || R.hasRule(run, 'auto_hedge');
 	return {
 		size: h.size,
 		bid: h.bids[W.PLAYER]!,
 		tricks: h.won[W.PLAYER],
-		made: W.madeBid(h, W.PLAYER) || (!!h.hedge && Math.abs(h.won[W.PLAYER] - h.bids[W.PLAYER]!) === 1),
-		hedged: !W.madeBid(h, W.PLAYER) && !!h.hedge && Math.abs(h.won[W.PLAYER] - h.bids[W.PLAYER]!) === 1,
+		made: W.madeBid(h, W.PLAYER) || (hedge && Math.abs(h.won[W.PLAYER] - h.bids[W.PLAYER]!) === 1),
+		hedged: !W.madeBid(h, W.PLAYER) && hedge && Math.abs(h.won[W.PLAYER] - h.bids[W.PLAYER]!) === 1,
 		blind: h.blind,
 		youDealt: h.dealer === W.PLAYER,
 		foolWins: mine.filter((p) => W.isFool(p.card)).length,
 		wins21: mine.filter((p) => p.card.rank === 21).length,
 		lowWins: mine.filter((p) => !W.isFool(p.card) && p.card.rank < 10).length,
+		highWins: mine.filter((p) => !W.isFool(p.card) && p.card.rank >= 15 && p.card.rank < 21).length,
+		midWins: mine.filter((p) => !W.isFool(p.card) && p.card.rank >= 10 && p.card.rank < 15).length,
 		lastTrick: h.tricks.at(-1)?.winner === W.PLAYER,
 		othersMissed: [1, 2, 4].filter((s) => !W.madeBid(h, s)).length,
 		firstTrick: h.tricks[0]?.winner === W.PLAYER,
@@ -103,7 +126,16 @@ function ctx(run: Run<WhistHand>): WhistCtx {
 		bidsUnder: W.bidTotal(h) < h.size,
 		streak: 0,
 		boardMade: 0,
-		handsThisBoard: run.module.handsPerBoard - run.handsLeft + 1
+		handsThisBoard: run.module.handsPerBoard - run.handsLeft + 1,
+		wonAll: h.won[W.PLAYER] === h.size,
+		usedPloy: !!h.spy || !!h.hedge || h.loophole === W.PLAYER,
+		usedSpy: !!h.spy,
+		rising: run.ext.prevSize !== undefined && h.size > run.ext.prevSize,
+		falling: run.ext.prevSize !== undefined && h.size < run.ext.prevSize,
+		relicCount: run.relics.length,
+		editionCount: run.relics.filter((r) => r.edition).length,
+		money: run.money,
+		totalMade: 0
 	};
 }
 
@@ -136,7 +168,56 @@ const RELICS: RelicDef<WhistCtx>[] = [
 	{ key: 'the_hermit', name: 'The Hermit', rarity: 2, cost: 7, icon: 'wallflower', text: 'x2 mult when you are the only one to make your bid', score: (c) => (c.made && c.othersMissed === 3 ? { xmult: 2 } : null) },
 	{ key: 'the_emperor', name: 'The Emperor', rarity: 3, cost: 8, icon: 'crown_jewels', text: '+1 mult for each round you have made on this board', score: (c) => (c.made && c.boardMade ? { mult: c.boardMade } : null) },
 	{ key: 'the_chariot', name: 'The Chariot', rarity: 3, cost: 9, icon: 'slam_hunter', text: 'x2 mult when you bid 3 or more and make it', score: (c) => (c.made && c.bid >= 3 ? { xmult: 2 } : null) },
-	{ key: 'third_eye', name: 'Third Eye', rarity: 3, cost: 8, icon: 'card_counter', text: 'x3 mult on one-card rounds you make', score: (c) => (c.made && c.blind ? { xmult: 3 } : null) }
+	{ key: 'third_eye', name: 'Third Eye', rarity: 3, cost: 8, icon: 'card_counter', text: 'x3 mult on one-card rounds you make', score: (c) => (c.made && c.blind ? { xmult: 3 } : null) },
+
+	// ---------------------------------------------------------------- common
+	{ key: 'bold_bid', name: 'Bold Bid', rarity: 1, cost: 5, icon: 'bold_bidding', text: '+25 chips when you bid 4 or more and make it', score: (c) => (c.made && c.bid >= 4 ? { chips: 25 } : null) },
+	{ key: 'safe_bet', name: 'Safe Bet', rarity: 1, cost: 4, icon: 'safety_net', text: '+20 chips when you bid 1 and make it', score: (c) => (c.made && c.bid === 1 ? { chips: 20 } : null) },
+	{ key: 'honour_roll', name: 'Honour Roll', rarity: 1, cost: 5, icon: 'honour_roll', text: '+25 chips for each trick you win with a trump 15 or higher, short of the 21', score: (c) => (c.highWins ? { chips: 25 * c.highWins } : null) },
+	{ key: 'minor_nobility', name: 'Minor Nobility', rarity: 1, cost: 4, icon: 'minor_nobility', text: '+15 chips for each trick you win with a trump 10 to 14', score: (c) => (c.midWins ? { chips: 15 * c.midWins } : null) },
+	{ key: 'duckling', name: 'Duckling', rarity: 1, cost: 4, icon: 'duck_hunter', text: '+50 chips on two-card rounds you make', score: (c) => (c.made && c.size === 2 ? { chips: 50 } : null) },
+	{ key: 'threes_company', name: 'Three’s Company', rarity: 1, cost: 4, icon: 'flat_hand', text: '+50 chips on three-card rounds you make', score: (c) => (c.made && c.size === 3 ? { chips: 50 } : null) },
+	{ key: 'four_square', name: 'Four Square', rarity: 1, cost: 4, icon: 'club_sandwich', text: '+50 chips on four-card rounds you make', score: (c) => (c.made && c.size === 4 ? { chips: 50 } : null) },
+	{ key: 'clean_sweep', name: 'Clean Sweep', rarity: 1, cost: 5, icon: 'clean_sweep', text: '+70 chips when you take every trick in the round', score: (c) => (c.made && c.wonAll && c.size > 1 ? { chips: 70 } : null) },
+	{ key: 'tailwind', name: 'Tailwind', rarity: 1, cost: 4, icon: 'tailwind', text: '+40 chips on rounds you make where more cards were dealt than last round', score: (c) => (c.made && c.rising ? { chips: 40 } : null) },
+	{ key: 'cold_feet', name: 'Cold Feet', rarity: 1, cost: 4, icon: 'cold_feet', text: '+40 chips on rounds you make where fewer cards were dealt than last round', score: (c) => (c.made && c.falling ? { chips: 40 } : null) },
+
+	// -------------------------------------------------------------- uncommon
+	{ key: 'insurance', name: 'Insurance', rarity: 2, cost: 6, icon: 'insurance', text: '+3 mult when Hedge forgives you', score: (c) => (c.hedged ? { mult: 3 } : null) },
+	{ key: 'coup', name: 'Coup', rarity: 2, cost: 6, icon: 'coup', text: '+2 mult when you win the first trick with the Fool', score: (c) => (c.firstTrick && c.foolWins ? { mult: 2 } : null) },
+	{ key: 'the_void', name: 'The Void', rarity: 2, cost: 7, icon: 'the_void', text: 'x1.5 mult when you bid zero, the bids add up exactly, and you make it', score: (c) => (c.made && c.bid === 0 && !c.bidsOver && !c.bidsUnder ? { xmult: 1.5 } : null) },
+	{ key: 'rubber_baron', name: 'Rubber Baron', rarity: 2, cost: 6, icon: 'rubber_baron', text: 'Earn $3 extra each time you win a board', onBoardWin: () => ({ money: 3 }) },
+	{ key: 'interest_rate', name: 'Interest Rate', rarity: 2, cost: 7, icon: 'interest_rate', text: 'Interest can reach $8 a hand instead of $5', interestCap: 8 },
+	{ key: 'bargain_bin', name: 'Bargain Bin', rarity: 2, cost: 6, icon: 'bargain_bin', text: 'Rerolls cost $1 less, and the first in each club is free', bargain: true },
+	{ key: 'table_talk', name: 'Table Talk', rarity: 2, cost: 6, icon: 'table_talk', text: '+2 mult on rounds where you use a ploy', score: (c) => (c.usedPloy ? { mult: 2 } : null) },
+	{ key: 'doubled_down', name: 'Doubled Down', rarity: 2, cost: 7, icon: 'doubled_down', text: 'x1.4 mult when the bids add up to more than the cards dealt and you make yours', score: (c) => (c.made && c.bidsOver ? { xmult: 1.4 } : null) },
+	{ key: 'partners_trust', name: 'Partner’s Trust', rarity: 2, cost: 6, icon: 'partners_trust', text: '+0.5 mult for each other player who makes their bid', score: (c) => (3 - c.othersMissed ? { mult: 0.5 * (3 - c.othersMissed) } : null) },
+	{ key: 'backbone', name: 'Backbone', rarity: 2, cost: 7, icon: 'strong_partner', text: '+0.3 mult for each trick you win, when you make your bid', score: (c) => (c.made && c.tricks ? { mult: 0.3 * c.tricks } : null) },
+
+	// ------------------------------------------------------------------ rare
+	{ key: 'grand_design', name: 'Grand Design', rarity: 3, cost: 8, icon: 'grand_design', text: 'x2 mult when you bid zero on a five-card round and make it', score: (c) => (c.made && c.bid === 0 && c.size === 5 ? { xmult: 2 } : null) },
+	{ key: 'vienna_coup', name: 'Vienna Coup', rarity: 3, cost: 9, icon: 'vienna_coup', text: 'x1.2 mult for each trick you win with the Fool', score: (c) => (c.foolWins ? { xmult: 1.2 ** c.foolWins } : null) },
+	{ key: 'trump_coup', name: 'Trump Coup', rarity: 3, cost: 9, icon: 'trump_coup', text: 'x3 mult when you make your bid blind and no one else makes theirs', score: (c) => (c.made && c.blind && c.othersMissed === 3 ? { xmult: 3 } : null) },
+	{ key: 'the_squeeze', name: 'The Squeeze', rarity: 3, cost: 8, icon: 'the_squeeze', text: 'x1.5 mult when the bids add up to more than the cards dealt and you make yours', score: (c) => (c.made && c.bidsOver ? { xmult: 1.5 } : null) },
+	{ key: 'kibitzer', name: 'Kibitzer', rarity: 3, cost: 8, icon: 'kibitzer', text: 'x1.5 mult on rounds where you use Second Sight', score: (c) => (c.usedSpy ? { xmult: 1.5 } : null) },
+	{ key: 'gallery', name: 'Gallery', rarity: 3, cost: 8, icon: 'gallery', text: '+0.5 mult for each of your relics with an edition', score: (c) => (c.editionCount ? { mult: 0.5 * c.editionCount } : null) },
+	{ key: 'gilded_cage', name: 'Gilded Cage', rarity: 3, cost: 9, icon: 'gilded_cage', text: '+0.4 mult for each relic you hold', score: (c) => (c.relicCount ? { mult: 0.4 * c.relicCount } : null) },
+	{ key: 'purist', name: 'Purist', rarity: 3, cost: 8, icon: 'purist', text: 'x2 mult when you make your bid without winning a trick with the Fool', score: (c) => (c.made && !c.foolWins ? { xmult: 2 } : null) },
+
+	// ------------------------------------------------------------- legendary
+	{
+		key: 'master_points', name: 'Master Points', rarity: 4, cost: 12, icon: 'master_points', text: '+0.3 mult for each round you have made this run',
+		score: (c) => (c.totalMade ? { mult: 0.3 * c.totalMade } : null)
+	},
+	{
+		key: 'life_master', name: 'Life Master', rarity: 4, cost: 12, icon: 'life_master', text: 'Gains x0.02 mult for every trick you win, for the rest of the run',
+		describe: (r) => `Gains x0.02 mult for every trick you win, for the rest of the run (now x${(1 + (r.state.x ?? 0)).toFixed(2)})`,
+		onHandEnd: (c, r) => void (r.state.x = (r.state.x ?? 0) + 0.02 * c.tricks),
+		score: (_c, r) => ((r.state.x ?? 0) > 0 ? { xmult: 1 + r.state.x } : null)
+	},
+	{ key: 'slam_dunk', name: 'Grand Slam', rarity: 4, cost: 13, icon: 'slam_dunk', text: 'x3 mult when you bid every card dealt and make it', score: (c) => (c.made && c.bid === c.size && c.size > 1 ? { xmult: 3 } : null) },
+	{ key: 'kings_ransom', name: 'King’s Ransom', rarity: 4, cost: 11, icon: 'kings_ransom', text: 'x1.1 mult for every $10 you have', score: (c) => (c.money >= 10 ? { xmult: 1.1 ** Math.floor(c.money / 10) } : null) },
+	{ key: 'the_fixer', name: 'The Fixer', rarity: 4, cost: 10, icon: 'the_fixer', text: 'Being off by one trick always counts as making your bid', rule: 'auto_hedge' }
 ];
 
 const UPGRADES: UpgradeDef[] = [
@@ -232,6 +313,7 @@ export const whist22: GameModule<WhistHand, WhistAction, WhistCtx> = {
 		run.ext.pennies = (run.ext.pennies ?? 0) + c.pennyTricks;
 		c.penniesThisRun = run.ext.pennies;
 		c.boardMade = run.ext.boardMade;
+		run.ext.prevSize = c.size;
 		const lines: Line[] = [];
 		const levels: string[] = [];
 		const word = (n: number) => `${n} trick${n === 1 ? '' : 's'}`;
@@ -245,6 +327,7 @@ export const whist22: GameModule<WhistHand, WhistAction, WhistCtx> = {
 			return { title: `Missed: bid ${c.bid}, took ${c.tricks}`, made: false, lines: [{ label: `Bid ${word(c.bid)}, took ${c.tricks}`, chips: 0 }], ctx: c, levels };
 		}
 		run.ext.made = (run.ext.made ?? 0) + 1;
+		c.totalMade = run.ext.made;
 		lines.push({ label: `Made ${word(c.bid)} exactly`, chips: worth });
 		levels.push('exact');
 		let title = c.hedged ? `Hedged: bid ${c.bid}, took ${c.tricks}` : c.bid === 0 ? 'A clean zero' : `Made ${c.bid}`;
