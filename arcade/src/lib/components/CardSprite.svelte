@@ -135,6 +135,10 @@
 	// A card held up (picked, dragged) casts a longer shadow.
 	const shadow = $derived(4 + lift * 0.3);
 	const tipping = $derived(Math.abs(tip.x) + Math.abs(tip.y) > 0.01);
+	// Straight and at its resting size, the art lands on whole device pixels:
+	// nearest-neighbour keeps it crisp. Turned, tipped or mid-resize it would
+	// come out jagged, so then the (already pixel-scaled) art is smoothed.
+	const turned = $derived(Math.abs(rot) > 0.002 || tipping || Math.abs(pos.current.s - snap(s)) > 0.002);
 
 	const w = $derived(CW * pos.current.s),
 		h = $derived(CH * pos.current.s);
@@ -145,6 +149,7 @@
 	class="sprite"
 	class:hidden={!launched}
 	class:click={!!click}
+	class:aa={turned}
 	style:z-index={z}
 	style:width="{w}px"
 	style:height="{h}px"
@@ -247,6 +252,9 @@
 		height: 100%;
 		display: block;
 		image-rendering: var(--card-render, pixelated);
+	}
+	.aa .face img {
+		image-rendering: auto;
 	}
 	.face.ed {
 		box-shadow:
