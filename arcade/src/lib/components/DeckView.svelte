@@ -10,8 +10,10 @@
 
 	const run = arcade.run!;
 	const view = arcade.ui!.view(run);
+	// Each game's own order within a suit (Tarot's knight sits under the queen).
+	const rk = (c: { rank: number }) => arcade.ui?.rankOrder?.(c as never) ?? c.rank;
 	const gone = new Set((view.played ?? []).map((c) => `${c.suit}-${c.rank}`));
-	const rows = [4, 3, 2, 1].map((s) => run.pack.filter((c) => c.suit === s).sort((a, b) => b.rank - a.rank)).filter((r) => r.length);
+	const rows = [5, 4, 3, 2, 1].map((s) => run.pack.filter((c) => c.suit === s).sort((a, b) => rk(b) - rk(a))).filter((r) => r.length);
 	const mods = run.pack.filter((c) => R.mod(run, c).edition || R.mod(run, c).seal).length;
 </script>
 
@@ -38,6 +40,7 @@
 	}
 	.row {
 		display: flex;
+		flex-wrap: wrap;
 		gap: 4px;
 		margin-bottom: 6px;
 	}
@@ -45,8 +48,8 @@
 		position: relative;
 	}
 	.card img {
-		width: 54px;
-		height: 76px;
+		width: 51px;
+		height: 71px;
 		image-rendering: auto;
 		display: block;
 	}

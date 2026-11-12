@@ -75,6 +75,15 @@ export interface GameUI {
 	scoreLine?(run: Run): string;
 	/** How to play this game: titled sections for the help screen. */
 	help: { title: string; text: string }[];
-	/** In the pre-play step, picking this many cards from your hand. */
-	pick?: number;
+	/** In the pre-play step, picking this many cards from your hand (a
+	 *  number, or decided by the hand: Tarot's dog is set aside only by a taker). */
+	pick?: number | ((run: Run) => number);
+	/** Order within a suit for sorting your hand, if not the rank (Tarot's knight). */
+	rankOrder?(c: Card): number;
+}
+
+/** How many cards the player picks now (0: none). */
+export function pickCount(ui: GameUI | undefined | null, run: Run | null | undefined): number {
+	if (!ui?.pick || !run) return 0;
+	return typeof ui.pick === 'number' ? ui.pick : ui.pick(run);
 }

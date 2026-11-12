@@ -8,7 +8,7 @@
 	import * as cards from '$kit/src/core/rules/cards.ts';
 	import * as R from '$kit/src/run/run.ts';
 	import type { Card } from '$kit/src/core/rules/cards.ts';
-	import type { Pos } from '../games/types.ts';
+	import { pickCount, type Pos } from '../games/types.ts';
 	import CardSprite from './CardSprite.svelte';
 	import Button from './Button.svelte';
 	import { HAND_S } from '../layout.ts';
@@ -73,8 +73,9 @@
 	function ordered(hand: Card[]): Card[] {
 		const o = arcade.order;
 		if (o.length && hand.every((c) => o.includes(key(c)))) return hand.slice().sort((a, b) => o.indexOf(key(a)) - o.indexOf(key(b)));
-		const bySuit = (a: Card, b: Card) => b.suit - a.suit || a.rank - b.rank;
-		const byRank = (a: Card, b: Card) => a.rank - b.rank || b.suit - a.suit;
+		const rk = (c: Card) => arcade.ui?.rankOrder?.(c) ?? c.rank;
+		const bySuit = (a: Card, b: Card) => b.suit - a.suit || rk(a) - rk(b);
+		const byRank = (a: Card, b: Card) => rk(a) - rk(b) || b.suit - a.suit;
 		return hand.slice().sort(arcade.sortBy === 'rank' ? byRank : bySuit);
 	}
 
@@ -115,7 +116,7 @@
 	let hover = $state<string | null>(null);
 	/** The hand card under the pointer, playable or not: its mods show above it. */
 	let under = $state<string | null>(null);
-	const picking = $derived(pre && !!arcade.ui!.pick);
+	const picking = $derived((void arcade.v, pre && pickCount(arcade.ui, arcade.run) > 0));
 	const south = $derived(view.seats.find((s) => s.pos === 'S'));
 	function actionable(k: string): boolean {
 		if (arcade.busy) return false;
@@ -190,8 +191,10 @@
 				});
 			} else {
 				const x = seat.pos === 'W' ? L.westX : L.eastX;
-				const y0 = CY - (16 * (n - 1)) / 2;
-				seat.cards.forEach((c, i) => out.push({ k: key(c), card: c, up: false, x, y: y0 + i * 16, s: 0.55, z: 5 + i, order: n0 + i }));
+				// A big hand (Tarot's eighteen) packs tighter to stay clear of the name.
+				const step = n > 1 ? Math.min(16, 230 / (n - 1)) : 0;
+				const y0 = CY - (step * (n - 1)) / 2;
+				seat.cards.forEach((c, i) => out.push({ k: key(c), card: c, up: false, x, y: y0 + i * step, s: 0.55, z: 5 + i, order: n0 + i }));
 			}
 			n0 += n;
 		}

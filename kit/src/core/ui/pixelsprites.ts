@@ -50,7 +50,9 @@ export const V = ['#...#', '#...#', '.#.#.', '.#.#.', '..#..'];
 export const CREST: Record<number, string[]> = {
 	13: ['g...g...g', 'gg.ggg.gg', 'ggggggggg', 'gGgGrGgGg', 'ggggggggg'],
 	12: ['...ggg...', '..gGrGg..', '.ggggggg.', '.gGgGgGg.', '.ggggggg.'],
-	11: ['....g....', '...gGg...', '..gg.gg..', '.gg...gg.', 'gg.....gg']
+	11: ['....g....', '...gGg...', '..gg.gg..', '.gg...gg.', 'gg.....gg'],
+	// a helm for the knight
+	15: ['..ggggg..', '.gGGGGGg.', '.ggggggg.', '.g.g.g.g.', '.ggggggg.']
 };
 
 /** A palette that paints every '#' in one color. */

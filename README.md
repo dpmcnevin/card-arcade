@@ -5,6 +5,7 @@ Card roguelikes in one style, on one engine. **Play at [corrupt.net/card-arcade]
 - [Shoot the Moon](https://corrupt.net/card-arcade/hearts/), a hearts roguelike
 - [Vulnerable](https://corrupt.net/card-arcade/bridge/), a contract bridge roguelike
 - [Right Bower](https://corrupt.net/card-arcade/euchre/), a euchre roguelike
+- [Petit au Bout](https://corrupt.net/card-arcade/tarot/), a French Tarot roguelike
 
 Each run: eight tables of three boards. Reach each board's goal within its hands, get paid, and spend it in the club on relics, upgrades, ploys, enhanced cards and bundles. The last board of every table has a boss.
 
@@ -16,7 +17,7 @@ kit/      the engine
   src/run    the generic run: goals, money, the club, relics, ploys,
              upgrades, enhanced cards, bosses, tags, decks, endless,
              chips x mult scoring, saves (seed + actions), profile, log
-  games/     one module per game: hearts, bridge, euchre
+  games/     one module per game: hearts, bridge, euchre, tarot
 arcade/   the web app (SvelteKit): one shell for every game, a small
           adapter per game, and a page per game
 ```

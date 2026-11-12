@@ -60,8 +60,15 @@ export const SUITS: SuitInfo[] = [
 	{ key: 'C', name: 'Clubs', glyph: '♣', red: false, major: false },
 	{ key: 'D', name: 'Diamonds', glyph: '♦', red: true, major: false },
 	{ key: 'H', name: 'Hearts', glyph: '♥', red: true, major: true },
-	{ key: 'S', name: 'Spades', glyph: '♠', red: false, major: true }
+	{ key: 'S', name: 'Spades', glyph: '♠', red: false, major: true },
+	// Tarot's trumps (1-21, and the Excuse as rank 0).
+	{ key: 'T', name: 'Trumps', glyph: '★', red: false, major: false }
 ];
+
+/** Tarot: the trump "suit", the knight's rank (between jack and queen), the Excuse. */
+export const TRUMPS = 5,
+	KNIGHT = 15,
+	EXCUSE = 0;
 
 export const STRAINS: SuitInfo[] = [
 	UNUSED,
@@ -91,7 +98,9 @@ export const RANKS = [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14];
 
 export const RANK_NAMES: Record<number, string> = {
 	2: '2', 3: '3', 4: '4', 5: '5', 6: '6', 7: '7', 8: '8',
-	9: '9', 10: '10', 11: 'J', 12: 'Q', 13: 'K', 14: 'A'
+	9: '9', 10: '10', 11: 'J', 12: 'Q', 13: 'K', 14: 'A',
+	// Tarot's low 1 and its knight (cavalier).
+	1: '1', 15: 'C'
 };
 
 // Milton Work point count: the standard way bridge players value a hand.
@@ -121,11 +130,13 @@ export function card(suit: number, rank: number): Card {
 
 /** "AS", stable across locales -- used for tests and save files. */
 export function code(c: Card): string {
+	if (c.suit === TRUMPS) return c.rank === EXCUSE ? 'EX' : `${c.rank}T`;
 	return RANK_NAMES[c.rank] + SUITS[c.suit].key;
 }
 
 /** "A♠", for display. */
 export function name(c: Card): string {
+	if (c.suit === TRUMPS) return c.rank === EXCUSE ? 'the Excuse' : `trump ${c.rank}`;
 	return RANK_NAMES[c.rank] + SUITS[c.suit].glyph;
 }
 

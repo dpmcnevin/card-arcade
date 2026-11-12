@@ -32,14 +32,16 @@ const TWO: Record<number, Color> = {
 	1: hex('#1b1d26'),
 	2: hex('#c8323c'),
 	3: hex('#c8323c'),
-	4: hex('#1b1d26')
+	4: hex('#1b1d26'),
+	5: hex('#2c3f8c')
 };
 // The four-color deck many bridge players prefer: suits never get confused.
 const FOUR: Record<number, Color> = {
 	1: hex('#23804e'),
 	2: hex('#d9771f'),
 	3: hex('#c8323c'),
-	4: hex('#1b1d26')
+	4: hex('#1b1d26'),
+	5: hex('#2c3f8c')
 };
 
 export function suitColor(suit: number, fourColor: boolean): Color {
@@ -129,8 +131,24 @@ const RANK11: Record<number, string[]> = {
 	11: ['...####', '.....##', '.....##', '.....##', '.....##', '.....##', '.....##', '.....##', '##...##', '##...##', '.#####.'],
 	12: ['.#####.', '##...##', '##...##', '##...##', '##...##', '##...##', '##...##', '##.#.##', '##..##.', '.##.##.', '..##.##'],
 	13: ['##...##', '##..##.', '##.##..', '####...', '###....', '###....', '####...', '##.##..', '##..##.', '##...##', '##...##'],
-	14: ['..###..', '.##.##.', '##...##', '##...##', '##...##', '#######', '#######', '##...##', '##...##', '##...##', '##...##']
+	14: ['..###..', '.##.##.', '##...##', '##...##', '##...##', '#######', '#######', '##...##', '##...##', '##...##', '##...##'],
+	// Tarot: the 1, and the knight (cavalier)
+	1: ['..##...', '.###...', '..##...', '..##...', '..##...', '..##...', '..##...', '..##...', '..##...', '..##...', '.####..'],
+	15: ['.#####.', '##...##', '##.....', '##.....', '##.....', '##.....', '##.....', '##.....', '##.....', '##...##', '.#####.']
 };
+
+/** Digits for numbers (Tarot's trumps), in the index font. */
+const DIGIT: Record<number, string[]> = {
+	0: ['.#####.', '##...##', '##...##', '##...##', '##...##', '##...##', '##...##', '##...##', '##...##', '##...##', '.#####.'],
+	1: ['..##.', '.###.', '..##.', '..##.', '..##.', '..##.', '..##.', '..##.', '..##.', '..##.', '.####'],
+	2: RANK11[2], 3: RANK11[3], 4: RANK11[4], 5: RANK11[5], 6: RANK11[6], 7: RANK11[7], 8: RANK11[8], 9: RANK11[9]
+};
+/** A number as one sprite: digits side by side, a pixel apart. */
+function numberSprite(n: number): string[] {
+	const ds = String(n).split('').map((d) => DIGIT[+d]);
+	return ds[0].map((_, row) => ds.map((d) => d[row].padEnd(d[0].length, '.')).join('.'));
+}
+const STAR7 = ['...#...', '..###..', '#######', '.#####.', '..###..', '.##.##.', '##...##'];
 
 /** Stamp a sprite at k times its size. */
 function stamp(b: Bitmap, rows: string[], pal: Record<string, Color>, x: number, y: number, k: number) {
@@ -238,12 +256,67 @@ function trumpMark2(b: Bitmap) {
 	b.fillRect(sx + 1, sy + 1, 3, 3, P.ink);
 }
 
+/** A Tarot trump: its number on a tinted deco panel, stars, and a gold
+ *  sunburst behind the oudlers (1 and 21). The Excuse is a star. */
+function tarotTrump(b: Bitmap, card: Card, color: Color) {
+	const pal = S.solid(color);
+	const tint: Color = [P.cream[0] + (color[0] - P.cream[0]) * 0.14, P.cream[1] + (color[1] - P.cream[1]) * 0.14, P.cream[2] + (color[2] - P.cream[2]) * 0.14, 1];
+	if (card.rank === cards.EXCUSE) {
+		ace2Ring(b);
+		const pts: number[] = [];
+		for (let i = 0; i < 10; i++) {
+			const a = -Math.PI / 2 + (i * Math.PI) / 5,
+				r = i % 2 === 0 ? 15 : 6.5;
+			pts.push(40 + Math.cos(a) * r, 57 + Math.sin(a) * r);
+		}
+		b.fillPoly(pts, color);
+		b.sprite(STAR7, pal, 4, 5);
+		b.sprite(STAR7, pal, FW - 4 - 7, FH - 5 - 7, { flip: true });
+		return;
+	}
+	// The panel, edged in gold.
+	for (let y = 18; y < 96; y++) for (let x = 18; x < 62; x++) b.set(x, y, tint);
+	b.rect(18, 18, 44, 78, P.gold);
+	const oudler = card.rank === 1 || card.rank === 21;
+	if (oudler) ace2Ring(b, 18);
+	const num = numberSprite(card.rank);
+	const nw = num[0].length;
+	b.sprite(num, pal, Math.round(40 - nw / 2), 52);
+	b.sprite(STAR7, S.solid(oudler ? P.goldDeep : P.gold), 37, 26);
+	b.sprite(STAR7, S.solid(oudler ? P.goldDeep : P.gold), 37, 80, { flip: true });
+	// The index: the number with a star under it.
+	b.sprite(num, pal, 4, 5);
+	b.sprite(STAR7, pal, 4, 18);
+	const flipped = num.map((r) => [...r].reverse().join('')).reverse();
+	b.sprite(flipped, pal, FW - 4 - nw, FH - 5 - 11);
+	b.sprite(STAR7, pal, FW - 4 - 7, FH - 18 - 7, { flip: true });
+}
+
+/** The gold sunburst ring the aces sit in. */
+function ace2Ring(b: Bitmap, r = 28) {
+	const cx = 40,
+		cy = 57;
+	const n = 16;
+	for (let i = 0; i < n; i++) {
+		const a0 = (i / n) * Math.PI * 2,
+			a1 = ((i + 1) / n) * Math.PI * 2;
+		b.fillPoly([cx, cy, cx + Math.cos(a0) * r, cy + Math.sin(a0) * r, cx + Math.cos(a1) * r, cy + Math.sin(a1) * r], i % 2 === 0 ? P.gold : P.goldLight);
+	}
+	b.fillCircle(cx, cy, r - 7, P.gold);
+	b.fillCircle(cx, cy, r - 9, P.cream);
+}
+
 /** Build the bitmap for a face-up card (80x112). */
 export function faceBitmap(card: Card, trump: boolean, fourColor: boolean): Bitmap {
 	const b = newBitmap(FW, FH);
 	const color = suitColor(card.suit, fourColor);
 	body2(b, trump ? P.trumpCream : P.cream);
+	if (card.suit === cards.TRUMPS) {
+		tarotTrump(b, card, color);
+		return b;
+	}
 	if (card.rank === 14) ace2(b, card, color);
+	else if (card.rank === 1) bigSuit(b, card.suit, 40, 57, 30, color);
 	else if (card.rank >= 11) court2(b, card, color);
 	else pips2(b, card, color);
 	if (trump) trumpMark2(b);

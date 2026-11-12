@@ -8,8 +8,9 @@ import { newRng } from '../src/core/rules/rng.ts';
 import { bridge } from '../games/bridge/module.ts';
 import { hearts } from '../games/hearts/module.ts';
 import { euchre } from '../games/euchre/module.ts';
+import { tarot } from '../games/tarot/module.ts';
 
-for (const module of [bridge, hearts, euchre]) {
+for (const module of [bridge, hearts, euchre, tarot]) {
 	test(`${module.id}: stepwise AI matches the instant AI`, () => {
 		const a = R.newRun(module, 'STEP'),
 			b = R.newRun(module, 'STEP');

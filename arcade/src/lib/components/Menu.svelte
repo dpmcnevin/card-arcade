@@ -197,17 +197,19 @@
 	.dim {
 		color: var(--ink-dim);
 	}
+	/* Every game in one row: four fit at 1280 wide. */
 	.games {
 		margin-top: 22px;
 		display: flex;
 		flex-wrap: wrap;
 		justify-content: center;
-		gap: 30px;
-		max-width: 1100px;
+		gap: 18px;
+		max-width: 1240px;
 	}
 	.game {
-		width: 300px;
-		padding: 14px 18px;
+		width: 270px;
+		box-sizing: border-box;
+		padding: 14px 16px;
 		background: rgba(12, 22, 18, 0.9);
 		border: 2px solid var(--brass-dim);
 		display: flex;

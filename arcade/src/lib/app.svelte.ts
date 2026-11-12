@@ -6,6 +6,7 @@ import { apply, replay, undo, type Action, type Save } from '$kit/src/run/save.t
 import type { Run } from '$kit/src/run/run.ts';
 import { byId } from './games/index.ts';
 import { LANDSCAPE, type Layout } from './layout.ts';
+import { pickCount } from './games/types.ts';
 import * as sound from './audio/sound.ts';
 import { fx } from './fx.svelte.ts';
 import { hex } from '$kit/src/core/ui/theme.ts';
@@ -271,7 +272,7 @@ class Arcade {
 	}
 
 	togglePick(key: string) {
-		const max = this.ui?.pick ?? 0;
+		const max = pickCount(this.ui, this.run);
 		if (this.picked.includes(key)) this.picked = this.picked.filter((k) => k !== key);
 		else if (this.picked.length < max) this.picked = [...this.picked, key];
 	}

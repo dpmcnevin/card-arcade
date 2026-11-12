@@ -18,7 +18,7 @@
 		cancel,
 		usable
 	}: { run: Run; title: string; text: string; choose: (c: Card) => void; cancel: () => void; usable?: (c: Card) => [boolean, string?] } = $props();
-	const rows = $derived([4, 3, 2, 1].map((s) => run.pack.filter((c) => c.suit === s).sort((a, b) => b.rank - a.rank)).filter((r) => r.length));
+	const rows = $derived([5, 4, 3, 2, 1].map((s) => run.pack.filter((c) => c.suit === s).sort((a, b) => b.rank - a.rank)).filter((r) => r.length));
 </script>
 
 <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->

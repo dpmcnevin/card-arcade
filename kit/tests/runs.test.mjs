@@ -7,8 +7,9 @@ import { replay } from '../src/run/save.ts';
 import { bridge } from '../games/bridge/module.ts';
 import { hearts } from '../games/hearts/module.ts';
 import { euchre } from '../games/euchre/module.ts';
+import { tarot } from '../games/tarot/module.ts';
 
-const GAMES = { bridge, hearts, euchre };
+const GAMES = { bridge, hearts, euchre, tarot };
 
 for (const [name, module] of Object.entries(GAMES)) {
 	test(`${name}: bot runs finish, score, use the club, and replay exactly`, () => {
