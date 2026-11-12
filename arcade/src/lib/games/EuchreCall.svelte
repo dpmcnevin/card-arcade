@@ -53,7 +53,7 @@
 	.up {
 		width: 80px;
 		height: 112px;
-		image-rendering: pixelated;
+		image-rendering: auto;
 	}
 	.up.gone {
 		filter: brightness(0.4);

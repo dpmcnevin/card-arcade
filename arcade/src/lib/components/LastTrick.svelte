@@ -16,7 +16,7 @@
 		<div class="trick">
 			{#each t.plays as p}
 				<div class="card" class:won={p.pos === t.winner} style:left="{AT[p.pos][0]}px" style:top="{AT[p.pos][1]}px">
-					<img src={cardFace(p.card, view.isTrump ? view.isTrump(p.card) : view.trump === p.card.suit, 2)} alt="" />
+					<img src={cardFace(p.card, view.isTrump ? view.isTrump(p.card) : view.trump === p.card.suit)} alt="" />
 					<span>{seat(p.pos)}</span>
 				</div>
 			{/each}
@@ -45,7 +45,7 @@
 	.card img {
 		width: 80px;
 		height: 112px;
-		image-rendering: pixelated;
+		image-rendering: auto;
 	}
 	.card.won img {
 		outline: 3px solid var(--brass);

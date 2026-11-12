@@ -80,7 +80,7 @@
 	.choice img {
 		width: 64px;
 		height: 90px;
-		image-rendering: pixelated;
+		image-rendering: auto;
 	}
 	h3 {
 		margin: 0;

@@ -12,12 +12,12 @@ import { CARD_H, CARD_W } from '$kit/src/core/ui/theme.ts';
 
 /** A smooth card drawn with canvas 2D, supersampled for any screen. */
 function smooth(draw: (g: CanvasRenderingContext2D) => void, px: number): string {
-	const k = Math.max(2, px);
+	const k = Math.max(1, px);
 	const canvas = document.createElement('canvas');
-	canvas.width = Math.round((CARD_W * k) / 2);
-	canvas.height = Math.round((CARD_H * k) / 2);
+	canvas.width = Math.round(CARD_W * k);
+	canvas.height = Math.round(CARD_H * k);
 	const g = canvas.getContext('2d')!;
-	g.scale(k / 2, k / 2);
+	g.scale(k, k);
 	g.translate(CARD_W / 2, CARD_H / 2);
 	draw(g);
 	return canvas.toDataURL();
@@ -25,21 +25,29 @@ function smooth(draw: (g: CanvasRenderingContext2D) => void, px: number): string
 
 const cache = new Map<string, string>();
 
-/** Device pixels per stage pixel. Card art (40x56) is rasterised at a
- *  whole multiple, and each card is drawn at a size where that multiple
- *  lands on whole device pixels: every art pixel the same size, crisp. */
+/** Device pixels per stage pixel. Card art (80x112, one art pixel per stage
+ *  pixel at scale 1) is rasterised at a whole multiple, and each card is
+ *  drawn at a size where that multiple lands on whole device pixels: every
+ *  art pixel the same size, crisp. */
 let K = 1;
-const SCALE = 6;
+/** For card images shown at a fixed size (the menu, panels): big enough to
+ *  scale down smoothly. */
+const SCALE = 3;
 export function setDeviceScale(stageToDevice: number) {
 	K = stageToDevice;
 }
-/** Whole device pixels per art pixel for a card drawn at `s` (x80px). */
+/** Whole device pixels per art pixel for a card drawn at `s`. */
 export function artPixels(s: number): number {
-	return Math.max(1, Math.round(2 * s * K));
+	return Math.max(1, Math.round(s * K));
 }
-/** The card size scale that `artPixels(s)` lands exactly on. */
+/** The card size scale that `artPixels(s)` lands exactly on (a card too
+ *  small for one device pixel per art pixel keeps its size, scaled down). */
 export function snap(s: number): number {
-	return artPixels(s) / (2 * K);
+	return s * K < 1 ? s : artPixels(s) / K;
+}
+/** Whether a card at `s` sits on whole device pixels. */
+export function crisp(s: number): boolean {
+	return s * K >= 1;
 }
 
 function cached(key: string, build: () => string): string {

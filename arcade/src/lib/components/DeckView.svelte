@@ -23,7 +23,7 @@
 				{@const m = R.mod(run, c)}
 				{@const seal = R.sealOf(run, c)}
 				<div class="card" class:gone={gone.has(`${c.suit}-${c.rank}`)}>
-					<img src={cardFace(c, false, 1)} alt="" style:outline={m.edition ? `3px solid ${editionColor(m.edition)}` : ''} />
+					<img src={cardFace(c)} alt="" style:outline={m.edition ? `3px solid ${editionColor(m.edition)}` : ''} />
 					{#if seal}<span class="badge"><SealBadge {seal} size={16} /></span>{/if}
 				</div>
 			{/each}
@@ -47,7 +47,7 @@
 	.card img {
 		width: 54px;
 		height: 76px;
-		image-rendering: pixelated;
+		image-rendering: auto;
 		display: block;
 	}
 	.card.gone {

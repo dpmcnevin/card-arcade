@@ -194,7 +194,7 @@
 	.sample {
 		width: 54px;
 		height: 76px;
-		image-rendering: pixelated;
+		image-rendering: auto;
 		display: block;
 	}
 	.banner {

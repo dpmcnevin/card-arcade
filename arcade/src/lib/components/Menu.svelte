@@ -134,7 +134,7 @@
 		width: 56px;
 		height: 78px;
 		display: block;
-		image-rendering: pixelated;
+		image-rendering: auto;
 	}
 	/* An idle sway, each card out of step; a bigger wiggle under the pointer. */
 	.wob {
@@ -218,7 +218,7 @@
 	.game img {
 		width: 60px;
 		height: 84px;
-		image-rendering: pixelated;
+		image-rendering: auto;
 	}
 	a {
 		color: var(--ink-dim);

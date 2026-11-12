@@ -88,17 +88,6 @@ function body(b: Bitmap, fill: Color) {
 	b.set(W - 2, H - 2, P.ink);
 }
 
-function cornerIndex(b: Bitmap, card: Card, color: Color) {
-	const glyph = S.RANK[card.rank];
-	const gw = glyph[0].length;
-	const pal = S.solid(color);
-	const off = gw > 5 ? 1 : 0;
-	b.sprite(glyph, pal, 3, 4);
-	b.sprite(S.SUIT5[card.suit], pal, 3 + off, 11);
-	b.sprite(glyph, pal, W - 3 - gw, H - 4 - 6, { flip: true });
-	b.sprite(S.SUIT5[card.suit], pal, W - 3 - 5 - off, H - 11 - 5, { flip: true });
-}
-
 // Pip layouts: column -1..1 and row -1..1.
 export const LAYOUTS: Record<number, [number, number][]> = {
 	2: [[0, -1], [0, 1]],
@@ -112,38 +101,105 @@ export const LAYOUTS: Record<number, [number, number][]> = {
 	10: [[-1, -1], [1, -1], [0, -2 / 3], [-1, -1 / 3], [1, -1 / 3], [-1, 1 / 3], [1, 1 / 3], [0, 2 / 3], [-1, 1], [1, 1]]
 };
 
-function pips(b: Bitmap, card: Card, color: Color) {
-	const pal = S.solid(color);
-	for (const p of LAYOUTS[card.rank]) {
-		// Columns sit 6px apart so the outer pips clear the corner indices.
-		const cx = 20 + p[0] * 6;
-		const cy = 28 + p[1] * 15;
-		// Upright, even in the bottom half: flipped, a pip this small reads as
-		// some other shape.
-		const sp = S.SUIT7[card.suit];
-		b.sprite(sp, pal, Math.floor(cx + 0.5) - 3, Math.floor(cy + 0.5) - Math.floor(sp.length / 2));
-	}
+// --------------------------------------------------------------------- builders
+
+// ------------------------------------------------------------ faces, at 2x
+//
+// Faces are drawn at twice the old resolution (80x112), so an art pixel is
+// half as big on screen: a fine index, smooth pips drawn from geometry, a
+// thin outline and no gold frame (that marks trumps). Courts reuse their
+// bold sprites at double size.
+
+export const FW = 80;
+export const FH = 112;
+
+// A fine index font, 5x7 with one-pixel strokes ("10" is 7 wide).
+const RANK7: Record<number, string[]> = {
+	2: ['.###.', '#...#', '....#', '...#.', '..#..', '.#...', '#####'],
+	3: ['####.', '....#', '....#', '.###.', '....#', '....#', '####.'],
+	4: ['...#.', '..##.', '.#.#.', '#..#.', '#####', '...#.', '...#.'],
+	5: ['#####', '#....', '####.', '....#', '....#', '#...#', '.###.'],
+	6: ['..##.', '.#...', '#....', '####.', '#...#', '#...#', '.###.'],
+	7: ['#####', '....#', '...#.', '..#..', '.#...', '.#...', '.#...'],
+	8: ['.###.', '#...#', '#...#', '.###.', '#...#', '#...#', '.###.'],
+	9: ['.###.', '#...#', '#...#', '.####', '....#', '...#.', '.##..'],
+	10: ['.#..##.', '##.#..#', '.#.#..#', '.#.#..#', '.#.#..#', '.#.#..#', '###.##.'],
+	11: ['..###', '...#.', '...#.', '...#.', '...#.', '#..#.', '.##..'],
+	12: ['.###.', '#...#', '#...#', '#...#', '#.#.#', '#..#.', '.##.#'],
+	13: ['#...#', '#..#.', '#.#..', '##...', '#.#..', '#..#.', '#...#'],
+	14: ['..#..', '.#.#.', '#...#', '#...#', '#####', '#...#', '#...#']
+};
+
+/** Stamp a sprite at k times its size. */
+function stamp(b: Bitmap, rows: string[], pal: Record<string, Color>, x: number, y: number, k: number) {
+	rows.forEach((row, j) => {
+		for (let i = 0; i < row.length; i++) {
+			const c = pal[row[i]];
+			if (c) b.fillRect(x + i * k, y + j * k, k, k, c);
+		}
+	});
 }
 
-function ace(b: Bitmap, card: Card, color: Color) {
-	const cx = 20,
-		cy = 28;
-	const n = 12;
+function body2(b: Bitmap, fill: Color) {
+	b.fillRect(1, 1, FW - 2, FH - 2, fill);
+	// A thin outline with rounded corners.
+	b.fillRect(3, 0, FW - 6, 1, P.ink);
+	b.fillRect(3, FH - 1, FW - 6, 1, P.ink);
+	b.fillRect(0, 3, 1, FH - 6, P.ink);
+	b.fillRect(FW - 1, 3, 1, FH - 6, P.ink);
+	for (const [x, y] of [[1, 2], [2, 1], [FW - 2, 2], [FW - 3, 1], [1, FH - 3], [2, FH - 2], [FW - 2, FH - 3], [FW - 3, FH - 2]]) b.set(x, y, P.ink);
+	for (const [x, y] of [[1, 1], [FW - 2, 1], [1, FH - 2], [FW - 2, FH - 2]]) b.clear(x, y);
+}
+
+function index2(b: Bitmap, card: Card, color: Color) {
+	// Bold: the 4x6 index font at double size, the 7px suit under it.
+	const glyph = S.RANK[card.rank];
+	const gw = glyph[0].length * 2;
+	const pal = S.solid(color);
+	const sx = 4 + Math.round((gw - 7) / 2);
+	stamp(b, glyph, pal, 4, 5, 2);
+	b.sprite(S.SUIT7[card.suit], pal, sx, 19);
+	const flipped = glyph.map((r) => [...r].reverse().join('')).reverse();
+	stamp(b, flipped, pal, FW - 4 - gw, FH - 5 - 12, 2);
+	b.sprite(S.SUIT7[card.suit], pal, FW - sx - 7, FH - 19 - 7, { flip: true });
+}
+
+// Hand-drawn pips for the 2x faces (geometry this small comes out lumpy).
+const PIP: Record<number, string[]> = {
+	// clubs: three round lobes, notched apart, on a flared stem
+	1: ['....###....', '...#####...', '...#####...', '...#####...', '....###....', '.###.#.###.', '###########', '###########', '###########', '.###.#.###.', '....###....', '...#####...'],
+	// diamonds
+	2: ['....#....', '...###...', '...###...', '..#####..', '..#####..', '.#######.', '#########', '.#######.', '..#####..', '..#####..', '...###...', '...###...', '....#....'],
+	// hearts
+	3: ['.###...###.', '#####.#####', '###########', '###########', '###########', '.#########.', '..#######..', '...#####...', '....###....', '.....#.....'],
+	// spades
+	4: ['.....#.....', '....###....', '...#####...', '..#######..', '.#########.', '###########', '###########', '###########', '.###.#.###.', '.....#.....', '....###....', '...#####...']
+};
+
+function pip(b: Bitmap, suit: number, cx: number, cy: number, color: Color) {
+	const rows = PIP[suit];
+	b.sprite(rows, S.solid(color), Math.round(cx - rows[0].length / 2), Math.round(cy - rows.length / 2));
+}
+
+function pips2(b: Bitmap, card: Card, color: Color) {
+	for (const p of LAYOUTS[card.rank]) bigSuit(b, card.suit, 40 + p[0] * 17, 57 + p[1] * 29, card.suit === cards.SPADES ? 16 : 15, color);
+}
+
+function ace2(b: Bitmap, card: Card, color: Color) {
+	const cx = 40,
+		cy = 56;
+	const n = 16;
 	for (let i = 0; i < n; i++) {
 		const a0 = (i / n) * Math.PI * 2;
 		const a1 = ((i + 1) / n) * Math.PI * 2;
-		b.fillPoly(
-			[cx, cy, cx + Math.cos(a0) * 14, cy + Math.sin(a0) * 14, cx + Math.cos(a1) * 14, cy + Math.sin(a1) * 14],
-			i % 2 === 0 ? P.gold : P.goldLight
-		);
+		b.fillPoly([cx, cy, cx + Math.cos(a0) * 28, cy + Math.sin(a0) * 28, cx + Math.cos(a1) * 28, cy + Math.sin(a1) * 28], i % 2 === 0 ? P.gold : P.goldLight);
 	}
-	b.fillCircle(cx, cy, 10, P.gold);
-	b.fillCircle(cx, cy, 9, P.cream);
-	bigSuit(b, card.suit, cx, cy, card.suit === cards.SPADES ? 13 : 12, color);
+	b.fillCircle(cx, cy, 21, P.gold);
+	b.fillCircle(cx, cy, 19, P.cream);
+	bigSuit(b, card.suit, cx, cy, card.suit === cards.SPADES ? 27 : 25, color);
 }
 
-function court(b: Bitmap, card: Card, color: Color) {
-	// Stepped-arch panel, tinted with the suit color.
+function court2(b: Bitmap, card: Card, color: Color) {
 	const tint: Color = [
 		P.cream[0] + (color[0] - P.cream[0]) * 0.18,
 		P.cream[1] + (color[1] - P.cream[1]) * 0.18,
@@ -152,55 +208,45 @@ function court(b: Bitmap, card: Card, color: Color) {
 	];
 	const mask = new Set<number>();
 	const mark = (x: number, y: number, w: number, h: number) => {
-		for (let j = y; j < y + h; j++) for (let i = x; i < x + w; i++) mask.add(j * 100 + i);
+		for (let j = y; j < y + h; j++) for (let i = x; i < x + w; i++) mask.add(j * 1000 + i);
 	};
-	mark(10, 16, 20, 29);
-	mark(12, 14, 16, 2);
-	mark(14, 12, 12, 2);
-	for (const key of mask) b.set(key % 100, Math.floor(key / 100), tint);
-	// Gold edge wherever the panel meets the outside.
+	mark(20, 32, 40, 58);
+	mark(24, 28, 32, 4);
+	mark(28, 24, 24, 4);
+	for (const key of mask) b.set(key % 1000, Math.floor(key / 1000), tint);
 	for (const key of mask) {
-		const x = key % 100,
-			y = Math.floor(key / 100);
-		if (
-			!(mask.has((y - 1) * 100 + x) && mask.has((y + 1) * 100 + x) && mask.has(y * 100 + x - 1) && mask.has(y * 100 + x + 1))
-		) {
-			b.set(x, y, P.gold);
-		}
+		const x = key % 1000,
+			y = Math.floor(key / 1000);
+		if (!(mask.has((y - 1) * 1000 + x) && mask.has((y + 1) * 1000 + x) && mask.has(y * 1000 + x - 1) && mask.has(y * 1000 + x + 1))) b.set(x, y, P.gold);
 	}
-	b.sprite(S.CREST[card.rank], { g: P.gold, G: P.goldLight, r: color }, 16, 15);
-	b.sprite(S.MONOGRAM[card.rank], S.solid(color), 17, 22);
-	b.sprite(S.SUIT7[card.suit], S.solid(color), 17, 33);
-	// Deco fluting at the panel base.
-	for (const x of [13, 16, 23, 26]) b.fillRect(x, 41, 1, 3, P.goldLight);
+	stamp(b, S.CREST[card.rank], { g: P.gold, G: P.goldLight, r: color }, 31, 30, 2);
+	stamp(b, S.MONOGRAM[card.rank], S.solid(color), 34, 44, 2);
+	pip(b, card.suit, 40, 76, color);
+	for (const x of [26, 32, 47, 53]) b.fillRect(x, 83, 1, 5, P.goldLight);
 }
 
-function trumpMark(b: Bitmap) {
-	b.rect(1, 1, W - 2, H - 2, P.gold);
-	b.rect(2, 2, W - 4, H - 4, P.goldLight);
-	// Ribbon in the bottom-left corner, with a star.
-	b.fillPoly([1, H - 14, 1, H - 1, 14, H - 1], P.goldDeep);
-	b.fillPoly([1, H - 12, 1, H - 1, 12, H - 1], P.goldLight);
-	const sx = 3,
-		sy = H - 7;
-	b.set(sx + 1, sy, P.ink);
-	b.fillRect(sx, sy + 1, 3, 1, P.ink);
-	b.set(sx + 1, sy + 2, P.ink);
+function trumpMark2(b: Bitmap) {
+	b.rect(2, 2, FW - 4, FH - 4, P.gold);
+	b.rect(3, 3, FW - 6, FH - 6, P.goldLight);
+	b.fillPoly([1, FH - 24, 1, FH - 1, 24, FH - 1], P.goldDeep);
+	b.fillPoly([1, FH - 21, 1, FH - 1, 21, FH - 1], P.goldLight);
+	const sx = 5,
+		sy = FH - 11;
+	b.fillRect(sx + 2, sy, 1, 5, P.ink);
+	b.fillRect(sx, sy + 2, 5, 1, P.ink);
+	b.fillRect(sx + 1, sy + 1, 3, 3, P.ink);
 }
 
-// --------------------------------------------------------------------- builders
-
-/** Build the bitmap for a face-up card. */
+/** Build the bitmap for a face-up card (80x112). */
 export function faceBitmap(card: Card, trump: boolean, fourColor: boolean): Bitmap {
-	const b = newBitmap(W, H);
+	const b = newBitmap(FW, FH);
 	const color = suitColor(card.suit, fourColor);
-	body(b, trump ? P.trumpCream : P.cream);
-	b.rect(2, 2, W - 4, H - 4, P.gold);
-	if (card.rank === 14) ace(b, card, color);
-	else if (card.rank >= 11) court(b, card, color);
-	else pips(b, card, color);
-	if (trump) trumpMark(b);
-	cornerIndex(b, card, color);
+	body2(b, trump ? P.trumpCream : P.cream);
+	if (card.rank === 14) ace2(b, card, color);
+	else if (card.rank >= 11) court2(b, card, color);
+	else pips2(b, card, color);
+	if (trump) trumpMark2(b);
+	index2(b, card, color);
 	return b;
 }
 
@@ -237,8 +283,19 @@ export function backStyle(deck = 'standard'): BackStyle {
 	return BACKS[deck] ?? BACKS.standard;
 }
 
-/** Build the bitmap for a card back: each starting deck has its own. */
+/** Build the bitmap for a card back (drawn at 40x56, doubled to 80x112 to
+ *  match the faces). */
 export function backBitmap(deck = 'standard'): Bitmap {
+	const small = backBitmap1(deck);
+	const b = newBitmap(FW, FH);
+	for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+		const c = small.get(x, y);
+		if (c) b.fillRect(x * 2, y * 2, 2, 2, c);
+	}
+	return b;
+}
+
+function backBitmap1(deck = 'standard'): Bitmap {
 	const st = BACKS[deck] ?? BACKS.standard;
 	const b = newBitmap(W, H);
 	body(b, st.edge ?? st.field);

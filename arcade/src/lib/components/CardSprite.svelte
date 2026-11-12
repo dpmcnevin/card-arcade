@@ -10,7 +10,7 @@
 	import { fade } from 'svelte/transition';
 	import type { Card } from '$kit/src/core/rules/cards.ts';
 	import type { SealDef } from '$kit/src/run/content.ts';
-	import { cardBack, cardFace, artPixels, snap } from '../ui/images.ts';
+	import { cardBack, cardFace, artPixels, snap, crisp } from '../ui/images.ts';
 	import * as sound from '../audio/sound.ts';
 	import SealBadge from './SealBadge.svelte';
 	import { editionColor } from './editions.ts';
@@ -138,7 +138,7 @@
 	// Straight and at its resting size, the art lands on whole device pixels:
 	// nearest-neighbour keeps it crisp. Turned, tipped or mid-resize it would
 	// come out jagged, so then the (already pixel-scaled) art is smoothed.
-	const turned = $derived(Math.abs(rot) > 0.002 || tipping || Math.abs(pos.current.s - snap(s)) > 0.002);
+	const turned = $derived(Math.abs(rot) > 0.002 || tipping || !crisp(s) || Math.abs(pos.current.s - snap(s)) > 0.002);
 
 	const w = $derived(CW * pos.current.s),
 		h = $derived(CH * pos.current.s);
