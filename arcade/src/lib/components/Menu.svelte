@@ -82,13 +82,26 @@
 	{:else}
 		<div class="dim">one engine, a game per page</div>
 	{/if}
+	{#if !solo}
+		<!-- The front door: a tile per game. Each opens the game's own page,
+		     which has the deck, the runs and the collection. -->
+		<div class="tiles">
+			{#each GAMES as g (g.module.id)}
+				<a class="tile" href="{base}/{g.module.id}/" title={g.blurb}>
+					<img src={cardBack(deckOf(g.module.id, g.module).key === 'standard' ? g.back : deckOf(g.module.id, g.module).back)} alt="" />
+					<h2>{g.module.title}</h2>
+					<div class="tag">{g.module.tagline}</div>
+					{#if arcade.saved(g.module.id)}<div class="saved">Run in progress</div>{/if}
+				</a>
+			{/each}
+		</div>
+	{:else}
 	<div class="games">
 		{#each GAMES as g (g.module.id)}
 			{@const deck = deckOf(g.module.id, g.module)}
 			<div class="game">
 				<img src={cardBack(deck.key === 'standard' ? g.back : deck.back)} alt="" />
-				<h2>{#if solo}{g.module.title}{:else}<a class="title" href="{base}/{g.module.id}/">{g.module.title}</a>{/if}</h2>
-				<div class="tag">{g.module.tagline}</div>
+				<!-- The page's heading already names the game. -->
 				<p>{g.blurb}</p>
 				<div class="deck">
 					<button class="arrow" title="Previous deck" onclick={() => cycle(g.module.id, g.module, -1)}><span class="tri left"></span></button>
@@ -103,6 +116,7 @@
 			</div>
 		{/each}
 	</div>
+	{/if}
 	<div class="settings">
 		<Button variant="plain" size="sm" onclick={() => settings.toggle('fourColor')} style="width: 120px">{settings.fourColor ? '4 colors' : '2 colors'}</Button>
 		<Button variant="plain" size="sm" onclick={() => settings.toggle('pixel')} style="width: 120px">{settings.pixel ? 'Pixel' : 'Smooth'}</Button>
@@ -183,6 +197,8 @@
 		display: flex;
 		flex-direction: column;
 		align-items: center;
+		/* Centred top to bottom, but never cut off if it runs taller. */
+		justify-content: safe center;
 		padding: 28px 0 20px;
 		gap: 6px;
 		/* Fits the stage; scrolls if a game's card ever runs taller. */
@@ -197,19 +213,57 @@
 	.dim {
 		color: var(--ink-dim);
 	}
-	/* Every game in one row: five fit at 1280 wide. */
 	.games {
 		margin-top: 22px;
 		display: flex;
+		justify-content: center;
+	}
+	.tiles {
+		margin-top: 34px;
+		display: flex;
 		flex-wrap: wrap;
 		justify-content: center;
-		gap: 12px;
-		max-width: 1250px;
+		gap: 22px;
+		max-width: 1220px;
+	}
+	.tile {
+		width: 210px;
+		box-sizing: border-box;
+		padding: 18px 12px 16px;
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		gap: 8px;
+		background: rgba(12, 22, 18, 0.9);
+		border: 2px solid var(--brass-dim);
+		color: inherit;
+		text-decoration: none;
+		transition: transform 0.12s, border-color 0.12s;
+	}
+	.tile:hover {
+		transform: translateY(-6px);
+		border-color: var(--brass);
+	}
+	.tile img {
+		width: 80px;
+		height: 112px;
+		image-rendering: auto;
+		filter: drop-shadow(0 4px 0 rgba(0, 0, 0, 0.35));
+	}
+	.tile h2 {
+		font-size: 23px;
+	}
+	.saved {
+		margin-top: 2px;
+		padding: 2px 8px;
+		font-size: 12px;
+		background: var(--brass);
+		color: var(--bg);
 	}
 	.game {
-		width: 236px;
+		width: 320px;
 		box-sizing: border-box;
-		padding: 12px 12px;
+		padding: 14px 18px;
 		background: rgba(12, 22, 18, 0.9);
 		border: 2px solid var(--brass-dim);
 		display: flex;
@@ -225,17 +279,10 @@
 	a {
 		color: var(--ink-dim);
 	}
-	a.title {
-		color: inherit;
-		text-decoration: none;
-	}
-	a.title:hover {
-		text-decoration: underline;
-	}
 	h2 {
 		margin: 0;
 		color: var(--brass);
-		font-size: 25px;
+		font-size: 30px;
 		white-space: nowrap;
 	}
 	.tag {
