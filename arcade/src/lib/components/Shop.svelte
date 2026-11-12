@@ -18,6 +18,8 @@
 
 	const run = $derived((void arcade.v, arcade.run!));
 	let picked = $state<number | null>(null);
+	/** The ware under the pointer: its details show without a click. */
+	let hovered = $state<number | null>(null);
 	/** An owned relic whose details are open. */
 	let reading = $state<number | null>(null);
 	/** A bought edition or seal waiting for its card. */
@@ -53,8 +55,17 @@
 	<div class="wares">
 		{#each run.shop?.items ?? [] as it, i (i + it.name + (arcade.v * 0))}
 			{@const can = R.canBuy(run, i)}
-			<div class="item" class:sel={picked === i} class:sold={it.sold} style:--edge={edge(it)} onclick={(e) => { e.stopPropagation(); if (!it.sold) picked = picked === i ? null : i; }}>
-				{#if !it.sold}<div class="coin">${it.cost}</div>{/if}
+			<div
+				class="item"
+				class:sel={picked === i}
+				class:sold={it.sold}
+				style:--edge={edge(it)}
+				style:animation-delay="{-i * 0.9}s"
+				onpointerenter={(e) => e.pointerType === 'mouse' && (hovered = i)}
+				onpointerleave={() => hovered === i && (hovered = null)}
+				onclick={(e) => { e.stopPropagation(); if (!it.sold) picked = picked === i ? null : i; }}
+			>
+				{#if !it.sold}<div class="coin" class:poor={run.money < it.cost} title={run.money < it.cost ? `${it.cost - run.money} short` : ''}>${it.cost}</div>{/if}
 				<div class="card k-{it.kind}">
 					<div class="banner">{KIND[it.kind]}</div>
 					{#if it.kind === 'bundle'}<div class="ribbon"></div>{/if}
@@ -68,7 +79,7 @@
 					<div class="name">{it.name}</div>
 					{#if it.sold}<div class="stamp">SOLD</div>{/if}
 				</div>
-				{#if picked === i && !it.sold}
+				{#if !it.sold && (picked === i || (picked === null && hovered === i))}
 					<div class="info">
 						<h3>{it.name}</h3>
 						<p>{text(it)}</p>
@@ -88,6 +99,7 @@
 				<Button variant="plain" size="sm" onclick={() => arcade.do({ t: 'sell', slot: i })} style="width: 100%">Sell ${Math.max(1, Math.floor(r.cost / 2))}</Button>
 			</div>
 		{/each}
+		{#each Array(Math.max(0, R.relicSlots(run) - R.relicSlotsUsed(run))) as _}<div class="slot">empty slot</div>{/each}
 	</div>
 	{#if choosing !== null}
 		{@const it = run.shop!.items[choosing]}
@@ -140,11 +152,30 @@
 		background: radial-gradient(ellipse at center, var(--felt-light), var(--felt-edge) 80%);
 		border: 3px solid var(--brass-dim);
 	}
+	/* Each ware floats a little, out of step with its neighbours. */
 	.item {
 		position: relative;
 		width: 150px;
 		cursor: pointer;
 		transition: transform 0.12s;
+		animation: float 3.6s ease-in-out infinite;
+	}
+	@keyframes float {
+		0%,
+		100% {
+			translate: 0 0;
+		}
+		50% {
+			translate: 0 -4px;
+		}
+	}
+	.item.sold {
+		animation: none;
+	}
+	@media (prefers-reduced-motion: reduce) {
+		.item {
+			animation: none;
+		}
 	}
 	.item:hover,
 	.item.sel {
@@ -167,6 +198,7 @@
 		color: #2a2418;
 		border: 4px solid var(--edge);
 		overflow: hidden;
+		box-shadow: 0 8px 0 rgba(0, 0, 0, 0.35);
 	}
 	.card:not(.k-relic) {
 		background: color-mix(in srgb, var(--edge) 18%, #f3ead6);
@@ -175,7 +207,10 @@
 		background: #3b2a63;
 		color: #f3ead6;
 	}
+	/* Over the ribbon, so the word reads. */
 	.k-bundle .banner {
+		position: relative;
+		z-index: 2;
 		background: var(--brass);
 	}
 	.ribbon {
@@ -237,6 +272,12 @@
 		box-shadow: inset 0 -3px 0 var(--brass-dim);
 		color: #2a2418;
 		font-weight: 700;
+	}
+	/* Can't afford it: the coin goes dark, the price red. */
+	.coin.poor {
+		background: var(--panel-edge);
+		box-shadow: inset 0 -3px 0 rgba(0, 0, 0, 0.35);
+		color: var(--bad);
 	}
 	.sold .card {
 		filter: grayscale(0.8) brightness(0.5);
@@ -308,6 +349,16 @@
 		gap: 8px;
 		align-items: center;
 		font-size: 14px;
+	}
+	.slot {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		min-height: 80px;
+		box-sizing: border-box;
+		border: 2px dashed var(--panel-edge);
+		color: var(--ink-faint);
+		font-size: 13px;
 	}
 	.foot {
 		margin-top: auto;

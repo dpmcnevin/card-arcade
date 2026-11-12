@@ -46,6 +46,10 @@ export interface WhistCtx {
 	boardMade: number;
 	/** Made only because Hedge forgave being off by one. */
 	hedged: boolean;
+	/** Tricks where every card played was under 6 (a Fool played as 0 counts). */
+	pennyTricks: number;
+	/** All such tricks this run (Penny Ante's mult). */
+	penniesThisRun: number;
 	handsThisBoard: number;
 }
 
@@ -93,6 +97,8 @@ function ctx(run: Run<WhistHand>): WhistCtx {
 		othersMissed: [1, 2, 4].filter((s) => !W.madeBid(h, s)).length,
 		firstTrick: h.tricks[0]?.winner === W.PLAYER,
 		foolLow: h.tricks.some((t) => t.plays.some((p) => p.seat === W.PLAYER && W.isFool(p.card) && p.value === 0)),
+		pennyTricks: h.tricks.filter((t) => t.plays.every((p) => p.value < 6)).length,
+		penniesThisRun: 0,
 		bidsOver: W.bidTotal(h) > h.size,
 		bidsUnder: W.bidTotal(h) < h.size,
 		streak: 0,
@@ -111,6 +117,12 @@ const RELICS: RelicDef<WhistCtx>[] = [
 	{ key: 'big_round', name: 'Big Round', rarity: 2, cost: 6, icon: 'nine_card_fit', text: '+50 chips on five-card rounds you make', score: (c) => (c.made && c.size === 5 ? { chips: 50 } : null) },
 	{ key: 'house_edge', name: 'House Edge', rarity: 2, cost: 6, icon: 'underdog', text: 'x1.5 mult on rounds you deal and make', score: (c) => (c.made && c.youDealt ? { xmult: 1.5 } : null) },
 	{ key: 'clean_slate', name: 'Clean Slate', rarity: 3, cost: 8, icon: 'clean_slate', text: 'x2 mult when you bid zero and make it', score: (c) => (c.made && c.bid === 0 ? { xmult: 2 } : null) },
+	{
+		key: 'penny_ante', name: 'Penny Ante', rarity: 2, cost: 6, icon: 'low_ball', text: 'Gains +1 mult for good each trick where every card played is under 6',
+		describe: (r) => `Gains +1 mult for good each trick where every card played is under 6 (now +${r.state.pennies ?? 0})`,
+		score: (c) => (c.penniesThisRun ? { mult: c.penniesThisRun } : null),
+		onHandEnd: (c, r) => void (r.state.pennies = c.penniesThisRun)
+	},
 	{ key: 'first_blood', name: 'First Blood', rarity: 1, cost: 4, icon: 'lead_out_of_turn', text: '+30 chips when you take the first trick and make your bid', score: (c) => (c.made && c.firstTrick ? { chips: 30 } : null) },
 	{ key: 'overbooked', name: 'Overbooked', rarity: 1, cost: 4, icon: 'double_down', text: '+40 chips when the bids add up to more than the cards dealt and you make yours', score: (c) => (c.made && c.bidsOver ? { chips: 40 } : null) },
 	{ key: 'short_change', name: 'Short Change', rarity: 1, cost: 4, icon: 'tip_jar', text: '+40 chips when the bids add up to fewer than the cards dealt and you make yours', score: (c) => (c.made && c.bidsUnder ? { chips: 40 } : null) },
@@ -217,6 +229,8 @@ export const whist22: GameModule<WhistHand, WhistAction, WhistCtx> = {
 		run.ext.streak = c.made ? (run.ext.streak ?? 0) + 1 : 0;
 		if (c.made) run.ext.boardMade = (run.ext.boardMade ?? 0) + 1;
 		c.streak = run.ext.streak;
+		run.ext.pennies = (run.ext.pennies ?? 0) + c.pennyTricks;
+		c.penniesThisRun = run.ext.pennies;
 		c.boardMade = run.ext.boardMade;
 		const lines: Line[] = [];
 		const levels: string[] = [];
