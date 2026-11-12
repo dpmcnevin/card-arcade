@@ -80,12 +80,17 @@
 	const turn = new Spring(init.face ? 0 : 180, { stiffness: 0.1, damping: 0.62 });
 	let launched = $state(init.delay <= 0);
 	let face = $state(init.face);
+	// A card dealt face down and turning up as it lands flips quietly (a
+	// whole hand of flip sounds at once is a rattle); later flips (a card
+	// played to the trick, the dummy shown) are heard.
+	let landedAt = untrack(() => (spawn ? performance.now() : 0));
 
 	onMount(() => {
 		if (launched) return;
 		const t = setTimeout(() => {
 			launched = true;
-			if (init.sound) sound.play('deal', { jitter: 0.1, volume: 0.6 });
+			landedAt = performance.now();
+			if (init.sound) sound.play('deal', { jitter: 0.06, volume: 0.4 });
 		}, init.delay * 1000);
 		return () => clearTimeout(t);
 	});
@@ -101,7 +106,7 @@
 		const t = setTimeout(() => {
 			face = want;
 			turn.target = want ? 0 : 180;
-			sound.play('flip', { jitter: 0.08, volume: 0.6 });
+			if (performance.now() - landedAt > 1000) sound.play('flip', { jitter: 0.08, volume: 0.6 });
 		}, flipDelay * 1000);
 		return () => clearTimeout(t);
 	});

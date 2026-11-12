@@ -11,6 +11,7 @@
 	import { pickCount, type Pos } from '../games/types.ts';
 	import { cardKey } from '../games/view.ts';
 	import CardSprite from './CardSprite.svelte';
+	import { settings } from '../settings.svelte.ts';
 	import Button from './Button.svelte';
 	import { HAND_S } from '../layout.ts';
 	import * as sound from '../audio/sound.ts';
@@ -266,6 +267,11 @@
 		sound.play('card_play', { jitter: 0.08, volume: 0.6 });
 	}
 	const LABEL = $derived(L.label);
+	// The deal: the whole pack goes out in about 0.7s (quicker at higher
+	// speeds), with about eight soft clicks however many cards there are.
+	const dealCount = $derived(view.seats.reduce((n, s) => n + s.cards.length, 0) || 1);
+	const dealStep = $derived(Math.min(0.03, 0.7 / dealCount) / Math.max(1, settings.speed));
+	const dealClick = $derived(Math.max(1, Math.round(dealCount / 8)));
 </script>
 
 <svelte:window onpointermove={move} onpointerup={up} />
@@ -306,7 +312,7 @@
 			trump={sp.up && (view.isTrump ? view.isTrump(sp.card) : view.trump === sp.card.suit)}
 			edition={sp.up ? R.mod(run, sp.card).edition : undefined}
 			seal={sp.up ? R.sealOf(run, sp.card) : undefined}
-			spawn={{ x: L.deck.x, y: L.deck.y, faceUp: false, delay: sp.order * 0.035, sound: sp.order % 3 === 0 }}
+			spawn={{ x: L.deck.x, y: L.deck.y, faceUp: false, delay: sp.order * dealStep, sound: sp.order % dealClick === 0 }}
 			flipDelay={sp.mine ? 0.25 : 0}
 			click={sp.click ? () => !suppress && sp.click!() : undefined}
 			pointerdown={sp.down && !arcade.busy ? sp.down : undefined}
