@@ -249,7 +249,8 @@ test('Steal the Deal: every game deals the hand again, with you as the dealer wh
 test('a homing seal always deals its card to you, even from the kitty, the dog or the undealt cards', async () => {
 	const { tarot } = await import('../games/tarot/module.ts');
 	const { whist22 } = await import('../games/whist22/module.ts');
-	for (const m of [hearts, euchre, tarot, whist22]) {
+	// (Whist 22 leaves Homing out.)
+	for (const m of [hearts, euchre, tarot]) {
 		for (let i = 0; i < 40; i++) {
 			const run = R.newRun(m, `HOME-${m.id}-${i}`);
 			const target = run.pack[(i * 7) % run.pack.length];
