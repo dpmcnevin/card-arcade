@@ -13,6 +13,7 @@
 	import * as sound from '../audio/sound.ts';
 	import SealBadge from './SealBadge.svelte';
 	import { editionColor } from './editions.ts';
+	import { fx } from '../fx.svelte.ts';
 
 	export interface Spawn {
 		x: number;
@@ -43,7 +44,8 @@
 		spawn,
 		flipDelay = 0,
 		click,
-		pointerdown
+		pointerdown,
+		thud = false
 	}: {
 		card: Card;
 		x: number;
@@ -68,13 +70,15 @@
 		flipDelay?: number;
 		click?: () => void;
 		pointerdown?: (e: PointerEvent) => void;
+		/** Landing here hits the table: a bigger bump and a little shake (a card played to the trick). */
+		thud?: boolean;
 	} = $props();
 
 	const CW = 80,
 		CH = 112;
 	const init = untrack(() => ({ x: spawn?.x ?? x, y: spawn?.y ?? y, r, s: snap(s), face: spawn?.faceUp ?? faceUp, delay: spawn?.delay ?? 0, sound: !!spawn?.sound }));
 
-	const pos = new Spring({ x: init.x, y: init.y, r: init.r, s: init.s }, { stiffness: 0.12, damping: 0.62 });
+	const pos = new Spring({ x: init.x, y: init.y, r: init.r, s: init.s }, { stiffness: 0.15, damping: 0.7 });
 	const turn = new Spring(init.face ? 0 : 180, { stiffness: 0.1, damping: 0.62 });
 	let launched = $state(init.delay <= 0);
 	let face = $state(init.face);
@@ -113,6 +117,66 @@
 	$effect(() => {
 		if (hovered) wobbleKey = untrack(() => wobbleKey) + 1;
 	});
+	// ---- weight: a card in flight lifts off the felt (bigger, longer shadow)
+	// and leans into its motion; when it lands it bumps and settles with a
+	// shiver. A card under the pointer tips toward it.
+	let air = $state(0);
+	let lean = $state(0);
+	let bump = $state({ s: 1, r: 0 });
+	let prevX = untrack(() => init.x);
+	let flying = false;
+	let raf = 0;
+	function land(amount: number) {
+		cancelAnimationFrame(raf);
+		const t0 = performance.now();
+		const step = () => {
+			const t = (performance.now() - t0) / 1000;
+			const d = Math.max(0, 1 - t / 0.42);
+			bump = { s: 1 + 0.11 * amount * d * d, r: 0.075 * amount * Math.sin(t * 42) * d * d };
+			if (d > 0) raf = requestAnimationFrame(step);
+		};
+		raf = requestAnimationFrame(step);
+	}
+	$effect(() => {
+		const { x: cx, y: cy } = pos.current;
+		const { x: tx, y: ty } = pos.target;
+		untrack(() => {
+			const dist = Math.hypot(tx - cx, ty - cy);
+			const dx = cx - prevX;
+			prevX = cx;
+			lean = Math.abs(dx) < 0.05 && dist < 1 ? 0 : lean * 0.6 + Math.max(-0.28, Math.min(0.28, dx * 0.011)) * 0.4;
+			air = Math.min(1, dist / 90);
+			if (dist > 60) flying = true;
+			else if (flying && dist < 5) {
+				flying = false;
+				land(thud ? 1 : 0.55);
+				if (thud) fx.shake(2.2);
+			}
+		});
+	});
+	let el: HTMLDivElement;
+	let tip = $state({ x: 0, y: 0 });
+	$effect(() => {
+		if (!hovered) {
+			tip = { x: 0, y: 0 };
+			return;
+		}
+		const move = (e: PointerEvent) => {
+			const r = el.getBoundingClientRect();
+			tip = {
+				x: Math.max(-1, Math.min(1, (e.clientX - (r.left + r.width / 2)) / (r.width / 2))),
+				y: Math.max(-1, Math.min(1, (e.clientY - (r.top + r.height / 2)) / (r.height / 2)))
+			};
+		};
+		window.addEventListener('pointermove', move);
+		return () => window.removeEventListener('pointermove', move);
+	});
+	$effect(() => () => cancelAnimationFrame(raf));
+	const rot = $derived(pos.current.r + lean + bump.r);
+	const grow = $derived((1 + 0.06 * air) * bump.s);
+	const shadow = $derived(4 + 12 * air + lift * 0.3);
+	const tipping = $derived(Math.abs(tip.x) + Math.abs(tip.y) > 0.01);
+
 	const w = $derived(CW * pos.current.s),
 		h = $derived(CH * pos.current.s);
 </script>
@@ -125,7 +189,10 @@
 	style:z-index={z}
 	style:width="{w}px"
 	style:height="{h}px"
-	style:transform="translate3d({Math.round(pos.current.x - w / 2)}px, {Math.round(pos.current.y - h / 2)}px, 0){Math.abs(pos.current.r) > 0.002 ? ` rotate(${pos.current.r}rad)` : ''}"
+	style:transform="translate3d({Math.round(pos.current.x - w / 2)}px, {Math.round(pos.current.y - h / 2)}px, 0){Math.abs(rot) > 0.002 ? ` rotate(${rot}rad)` : ''}{Math.abs(grow - 1) > 0.002 ? ` scale(${grow})` : ''}{tipping ? ` perspective(700px) rotateX(${-tip.y * 11}deg) rotateY(${tip.x * 11}deg)` : ''}"
+	style:--shadow="{shadow}px"
+	style:--shadow-a={0.35 - 0.12 * air}
+	bind:this={el}
 	onclick={click}
 	onpointerdown={pointerdown}
 	out:fade={{ duration: 220 }}
@@ -234,7 +301,7 @@
 		position: absolute;
 		inset: 0;
 		border-radius: 4px;
-		box-shadow: 0 4px 0 rgba(0, 0, 0, 0.35);
+		box-shadow: 0 var(--shadow, 4px) 0 rgba(0, 0, 0, var(--shadow-a, 0.35));
 	}
 	.turner .face {
 		backface-visibility: hidden;
@@ -249,7 +316,7 @@
 	.face.ed {
 		box-shadow:
 			0 0 0 3px var(--glow),
-			0 4px 0 3px rgba(0, 0, 0, 0.35);
+			0 var(--shadow, 4px) 0 3px rgba(0, 0, 0, var(--shadow-a, 0.35));
 	}
 	.back.turned {
 		transform: rotateY(180deg);
