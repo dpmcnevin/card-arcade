@@ -104,7 +104,7 @@
 		<div class="tiles">
 			{#each GAMES as g (g.module.id)}
 				<a class="tile" href="{base}/{g.module.id}/" title={g.blurb}>
-					<img src={cardBack(deckOf(g.module.id, g.module).key === 'standard' ? g.back : deckOf(g.module.id, g.module).back)} alt="" />
+					<img src={cardBack(deckOf(g.module.id, g.module).back === 'standard' ? g.back : deckOf(g.module.id, g.module).back)} alt="" />
 					<h2>{g.module.title}</h2>
 					<div class="tag">{g.module.tagline}</div>
 					{#if arcade.saved(g.module.id)}<div class="saved">Run in progress</div>{/if}
@@ -116,7 +116,7 @@
 		{#each GAMES as g (g.module.id)}
 			{@const deck = deckOf(g.module.id, g.module)}
 			<div class="game">
-				<img src={cardBack(deck.key === 'standard' ? g.back : deck.back)} alt="" />
+				<img src={cardBack(deck.back === 'standard' ? g.back : deck.back)} alt="" />
 				<!-- The page's heading already names the game. -->
 				<p>{g.blurb}</p>
 				<div class="deck">

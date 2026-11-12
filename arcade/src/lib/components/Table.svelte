@@ -28,7 +28,10 @@
 	const pre = $derived((void arcade.v, arcade.run!.phase === R.PHASE.PRE));
 	const key = cardKey;
 	// The Standard Deck wears the game's own back; other decks their own.
-	const back = $derived(run.deck === 'standard' ? arcade.ui!.back : (R.allDecks(run.module).find((d) => d.key === run.deck)?.back ?? arcade.ui!.back));
+	const back = $derived.by(() => {
+		const b = R.allDecks(run.module).find((d) => d.key === run.deck)?.back;
+		return !b || b === 'standard' ? arcade.ui!.back : b;
+	});
 	// One key per deal, so every hand deals in fresh (the same card in the next
 	// hand is a new sprite flying from the deck).
 	const deal = $derived((void arcade.v, `${run.table}.${run.board}.${run.stats.hands - (run.phase === R.PHASE.PRE || run.phase === R.PHASE.PLAY ? 0 : 1)}.${run.ext.redeals ?? 0}`));

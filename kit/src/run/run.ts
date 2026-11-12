@@ -404,6 +404,8 @@ export const GENERIC_DECKS: DeckDef[] = [
 			}
 		}
 	},
+	// The plain start: no enhanced cards.
+	{ key: 'basic', name: 'Basic Deck', text: 'No enhanced cards: the plain start', back: 'standard' },
 	{ key: 'gilded', name: 'Gilded Deck', text: 'Start with $10', back: 'gilded', apply: (run) => (run.money = 10) },
 	{
 		key: 'royal', name: 'Royal Deck', text: 'Your four aces start Etched', back: 'royal',
