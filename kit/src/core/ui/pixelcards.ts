@@ -65,13 +65,14 @@ function bigSuit(b: Bitmap, suit: number, cx: number, cy: number, size: number, 
 		b.fillPoly([cx - s * 0.98, cy + s * 0.08, cx + s * 0.98, cy + s * 0.08, cx, cy - s], color);
 		b.fillPoly([cx, cy + s * 0.2, cx - s * 0.4, cy + s, cx + s * 0.4, cy + s], color);
 	} else {
-		// Three round lobes, apart enough to read as a club, on a slim stem.
-		const r = s * 0.36;
-		b.fillCircle(cx, cy - s * 0.55, r, color);
-		b.fillCircle(cx - s * 0.58, cy + s * 0.08, r, color);
-		b.fillCircle(cx + s * 0.58, cy + s * 0.08, r, color);
-		b.fillRect(Math.round(cx - 1), Math.round(cy - s * 0.4), 2, Math.round(s * 1.0), color);
-		b.fillPoly([cx, cy + s * 0.35, cx - s * 0.38, cy + s, cx + s * 0.38, cy + s], color);
+		// Three full lobes that just overlap (a solid three-leaf shape with
+		// notches between the leaves), on a short flared stem.
+		const r = s * 0.46;
+		b.fillCircle(cx, cy - s * 0.5, r, color);
+		b.fillCircle(cx - s * 0.52, cy + s * 0.16, r, color);
+		b.fillCircle(cx + s * 0.52, cy + s * 0.16, r, color);
+		b.fillRect(Math.round(cx - 1), Math.round(cy), 2, Math.round(s * 0.8), color);
+		b.fillPoly([cx, cy + s * 0.5, cx - s * 0.42, cy + s, cx + s * 0.42, cy + s], color);
 	}
 }
 
@@ -182,7 +183,7 @@ function pip(b: Bitmap, suit: number, cx: number, cy: number, color: Color) {
 }
 
 function pips2(b: Bitmap, card: Card, color: Color) {
-	for (const p of LAYOUTS[card.rank]) bigSuit(b, card.suit, 40 + p[0] * 17, 57 + p[1] * 29, card.suit === cards.SPADES ? 16 : 15, color);
+	for (const p of LAYOUTS[card.rank]) bigSuit(b, card.suit, 40 + p[0] * 18, 57 + p[1] * 31, card.suit === cards.SPADES ? 18 : 17, color);
 }
 
 function ace2(b: Bitmap, card: Card, color: Color) {

@@ -82,7 +82,8 @@
 	function fan(n: number) {
 		const w = CW * HAND_S,
 			h = CH * HAND_S;
-		const gap = n > 1 ? Math.min(62, (L.handW - w) / (n - 1)) : 0;
+		// A short hand spreads out; a long one overlaps to fit.
+		const gap = n > 1 ? Math.min(w * 0.82, (L.handW - w) / (n - 1)) : 0;
 		const x0 = CX - (w + gap * (n - 1)) / 2 + w / 2;
 		return {
 			w, h, gap, x0,
