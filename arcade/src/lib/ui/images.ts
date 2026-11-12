@@ -68,7 +68,7 @@ export function cardBack(deck = 'standard', px = SCALE): string {
 }
 
 export function icon(key: string): string {
-	return cached(`icon|${key}`, () => toCanvas(icons.bitmap(key), 8).toDataURL());
+	return cached(`icon|${key}`, () => toCanvas(icons.bitmap(key), 16).toDataURL());
 }
 
 export function seal(glyph: string, color: string): string {
