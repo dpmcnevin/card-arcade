@@ -5,6 +5,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import * as R from '../src/run/run.ts';
 import { newRng } from '../src/core/rules/rng.ts';
+import * as cards from '../src/core/rules/cards.ts';
 import { hearts } from '../games/hearts/module.ts';
 import { euchre } from '../games/euchre/module.ts';
 import { bridge } from '../games/bridge/module.ts';
@@ -223,4 +224,24 @@ test('whist22: the Loophole ploy lets the dealer make the bids add up', async ()
 		return;
 	}
 	assert.fail('no deal found where you deal with a barred bid');
+});
+
+test('Steal the Deal: every game deals the hand again, with you as the dealer where there is one', async () => {
+	const { tarot } = await import('../games/tarot/module.ts');
+	const { whist22 } = await import('../games/whist22/module.ts');
+	for (const m of [hearts, bridge, euchre, tarot, whist22]) {
+		assert.ok(R.allPloys(m).some((p) => p.key === 'steal_deal'), `${m.id} offers it`);
+		const run = R.newRun(m, `STEAL-${m.id}`);
+		const before = { hands: run.stats.hands, left: run.handsLeft, size: run.hand.size, pass: run.hand.passDir, redeals: run.ext.redeals ?? 0 };
+		run.ploys = ['steal_deal'];
+		assert.deepEqual(R.canUsePloy(run, 0), [true], `${m.id} can use it at the start`);
+		R.usePloy(run, 0);
+		assert.equal(run.stats.hands, before.hands, `${m.id}: not a new hand`);
+		assert.equal(run.handsLeft, before.left, `${m.id}: no hand used up`);
+		assert.equal(run.ext.redeals, before.redeals + 1);
+		assert.ok(run.phase === R.PHASE.PRE || run.phase === R.PHASE.PLAY);
+		if (m === euchre || m === whist22) assert.equal(run.hand.dealer, cards.SOUTH, `${m.id}: you deal`);
+		if (m === whist22) assert.equal(run.hand.size, before.size, 'the same round size');
+		if (m === hearts) assert.equal(run.hand.passDir, before.pass, 'the same pass');
+	}
 });

@@ -235,6 +235,9 @@ export const bridge: GameModule<Deal, BridgeAction, relicsLib.ScoreCtx> = {
 	},
 	handOver: (run) => !!run.hand.state?.complete,
 	aiToMove: (run) => !!run.hand.state && !run.hand.state.complete && !isPlayerTurn(run),
+	untouched: (run) => !run.hand.state || run.hand.state.tricks.length === 0,
+	// You declare every board, so there's no dealer to be: fresh cards.
+	redeal: (run) => bridge.deal(run),
 	settled(run) {
 		const d = run.hand as Deal;
 		const st = d.state;

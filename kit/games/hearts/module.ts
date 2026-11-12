@@ -261,6 +261,11 @@ export const hearts: GameModule<HeartsHand, HeartsAction, relicsLib.ScoreCtx> = 
 	},
 	handOver: (run) => !!run.hand.state?.complete,
 	untouched: (run) => !run.hand.state || run.hand.state.tricks.length === 0,
+	// No dealer in Hearts: fresh cards, the same pass.
+	redeal(run) {
+		run.ext.handCount = Math.max(0, (run.ext.handCount ?? 1) - 1);
+		return hearts.deal(run);
+	},
 	settled(run) {
 		const h = run.hand as HeartsHand;
 		const st = h.state;

@@ -143,6 +143,12 @@ export const whist22: GameModule<WhistHand, WhistAction, WhistCtx> = {
 			while (!h.complete) aiStep(h);
 		}
 	},
+	redeal(run) {
+		// The same round size again, dealt by you.
+		run.ext.round = ((run.ext.round ?? 0) + W.ROUNDS.length - 1) % W.ROUNDS.length;
+		run.ext.dealer = cards.EAST;
+		return whist22.deal(run);
+	},
 	handOver: (run) => run.hand.complete,
 	untouched: (run) => run.hand.tricks.length === 0,
 	settled(run) {

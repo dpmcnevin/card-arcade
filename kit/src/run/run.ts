@@ -136,6 +136,8 @@ export interface PloyDef {
 	when: Phase[];
 	canUse?: (run: Run) => [boolean, string?];
 	use: (run: Run) => void;
+	/** Only in games this is true for (a generic ploy a game must support). */
+	only?: (m: GameModule) => boolean;
 }
 
 /** A boss: the last board of each table, with a rule. Score hooks run
@@ -197,6 +199,9 @@ export interface GameModule<H = any, A = any, S = any> {
 	/** Nothing has happened this hand yet: no trick finished (a board can
 	 *  still be skipped). Default: only in the pre-play step. */
 	untouched?(run: Run<H>): boolean;
+	/** Deal this hand again, with the player as dealer where the game has
+	 *  one, without counting a new hand (the Steal the Deal ploy). */
+	redeal?(run: Run<H>): { hand: H; phase: 'pre' | 'play' };
 	/** Nothing left in this hand can change its score (every way to play the
 	 *  rest ends the same): the player may claim it. See settle.ts. */
 	settled?(run: Run<H>): boolean;
@@ -337,6 +342,18 @@ export const ENDLESS_GROWTH = 1.6;
 /** Ploys every game gets. */
 export const GENERIC_PLOYS: PloyDef[] = [
 	{
+		key: 'steal_deal', name: 'Steal the Deal', text: 'Deal this hand again, with you as the dealer', cost: 4, icon: 'redeal',
+		when: [PHASE.PRE, PHASE.PLAY],
+		only: (m) => !!m.redeal,
+		canUse: (run) => (run.module.untouched && !run.module.untouched(run) ? [false, 'only before a trick is played'] : [true]),
+		use: (run) => {
+			const { hand, phase } = run.module.redeal!(run);
+			run.hand = hand;
+			run.phase = phase === 'pre' ? PHASE.PRE : PHASE.PLAY;
+			run.ext.redeals = (run.ext.redeals ?? 0) + 1;
+		}
+	},
+	{
 		key: 'encore', name: 'Encore', text: '+1 hand on this board', cost: 5, icon: 'ploy_encore',
 		when: [PHASE.PRE, PHASE.PLAY, PHASE.SCORED],
 		canUse: (run) => (run.phase === PHASE.SCORED && run.score >= run.target ? [false, 'the board is won'] : [true]),
@@ -387,7 +404,7 @@ export const GENERIC_DECKS: DeckDef[] = [
 ];
 
 export function allPloys(m: GameModule): PloyDef[] {
-	return [...GENERIC_PLOYS, ...(m.ploys ?? [])];
+	return [...GENERIC_PLOYS, ...(m.ploys ?? [])].filter((p) => !p.only || p.only(m));
 }
 export function allSeals(m: GameModule): SealDef[] {
 	return [...C.SEALS, ...(m.seals ?? [])];

@@ -200,6 +200,10 @@ export const tarot: GameModule<TarotHand, TarotAction, TarotCtx> = {
 			while (!h.complete) T.play(h, h.turn, ai.chooseCard(h, h.turn));
 		}
 	},
+	redeal(run) {
+		run.ext.dealer = cards.EAST;
+		return tarot.deal(run);
+	},
 	handOver: (run) => run.hand.complete,
 	untouched: (run) => run.hand.tricks.length === 0,
 	settled(run) {

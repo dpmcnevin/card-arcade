@@ -175,6 +175,10 @@ export const euchre: GameModule<EuchreHand, EuchreAction, EuchreCtx> = {
 			while (!h.complete) E.play(h, h.turn, ai.chooseCard(h, h.turn));
 		}
 	},
+	redeal(run) {
+		run.ext.dealer = cards.EAST;
+		return euchre.deal(run);
+	},
 	handOver: (run) => run.hand.complete,
 	untouched: (run) => run.hand.tricks.length === 0,
 	settled(run) {
