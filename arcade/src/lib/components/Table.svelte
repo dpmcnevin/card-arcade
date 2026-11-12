@@ -53,7 +53,7 @@
 		ring?: string;
 	}
 
-	const TRICK: Record<Pos, [number, number]> = { N: [0, -96], S: [0, 96], W: [-130, 0], E: [130, 0] };
+	const TRICK: Record<Pos, [number, number]> = { N: [0, -92], S: [0, 88], W: [-130, 0], E: [130, 0] };
 	/** A played card lands a little askew, the same way each time. */
 	const tilt = (c: Card) => ((((c.suit * 13 + c.rank) * 37) % 11) - 5) * 0.013;
 
@@ -247,7 +247,7 @@
 			{#if seat.dealer}<span class="dealer" title="Dealer">D</span>{/if}{seat.name}{#if seat.active && seat.pos !== 'S' && arcade.busy}<span class="think"><i></i><i></i><i></i></span>{/if}{#if seat.tally}{#key seat.tally}<span class="tally">{seat.tally}</span>{/key}{/if}
 		</div>
 	{/each}
-	{#if view.banner}<div class="banner" style:left="{CX}px" style:top="{L.bannerY}px">{view.banner}</div>{/if}
+	{#if view.banner}<div class="banner" style:left="{L.bannerX ?? CX}px" style:top="{L.bannerY}px">{view.banner}</div>{/if}
 	{#if view.trump}
 		<div class="trump" style:left="{L.table.x + 20}px" style:top="{L.table.y + 16}px" class:red={cards.SUITS[view.trump].red} title="Trump: {cards.SUITS[view.trump].name}">
 			<span class="tl">Trump</span><span class="tg">{cards.SUITS[view.trump].glyph + '\uFE0E'}</span>

@@ -36,29 +36,37 @@ export interface Layout {
 	peekAt: [number, number];
 	outAt: [number, number];
 	bannerY: number;
+	/** Where the game's banner line sits (beside your name, clear of the trick). */
+	bannerX?: number;
 }
 
 /** Your hand's card scale, and its height. */
 export const HAND_S = 1.5;
 const HAND_H = 112 * HAND_S;
 
-export const LANDSCAPE: Layout = (() => {
+/** Landscape at any height from 720 to 1000 (the stage takes the window's
+ *  shape, so a tall window gets more table, not empty bands). North stays at
+ *  the top, your hand at the bottom, the trick between them. */
+export function landscape(H = 720): Layout {
 	const W = 1280,
-		H = 720,
 		side = { x: 0, y: 0, w: 270, h: H },
 		table = { x: 270, y: 0, w: W - 270, h: H };
+	const extra = H - 720;
 	const cx = table.x + table.w / 2,
-		cy = 300;
+		cy = Math.round(296 + extra * 0.45);
+	const down = (y: number) => y + extra;
 	return {
 		portrait: false, W, H, side, table, cx, cy,
 		handY: H - HAND_H / 2 - 34, handW: 880,
 		northY: 72, westX: table.x + 60, eastX: table.x + table.w - 60,
-		deck: { x: table.x + table.w - 70, y: 640 },
-		label: { N: [cx, 16], S: [cx, 452], W: [table.x + 60, cy - 150], E: [table.x + table.w - 60, cy - 150] },
-		sortAt: [table.x + 24, 432], peekAt: [table.x + table.w - 24, 470], outAt: [table.x + table.w - 24, 420],
-		bannerY: 424
+		deck: { x: table.x + table.w - 70, y: down(640) },
+		label: { N: [cx, 16], S: [cx, down(456)], W: [table.x + 60, cy - 150], E: [table.x + table.w - 60, cy - 150] },
+		sortAt: [table.x + 24, down(432)], peekAt: [table.x + table.w - 24, down(470)], outAt: [table.x + table.w - 24, down(420)],
+		bannerY: down(456),
+		bannerX: cx + 250
 	};
-})();
+}
+export const LANDSCAPE: Layout = landscape();
 
 export const PORTRAIT: Layout = (() => {
 	const W = 800,
@@ -80,7 +88,8 @@ export const PORTRAIT: Layout = (() => {
 
 /** Portrait when the window is taller than it is wide (with some margin). */
 export function layoutFor(w: number, h: number): Layout {
-	return h > w * 1.15 ? PORTRAIT : LANDSCAPE;
+	if (h > w * 1.15) return PORTRAIT;
+	return landscape(Math.round(Math.max(720, Math.min(1000, (1280 * h) / w))));
 }
 
 /** The CSS variables the stage sets for its children. */
