@@ -49,7 +49,6 @@
 		mine?: boolean;
 		/** A colored ring: the trick's winner, a card just passed to you. */
 		ring?: string;
-		thud?: boolean;
 	}
 
 	const TRICK: Record<Pos, [number, number]> = { N: [0, -96], S: [0, 96], W: [-130, 0], E: [130, 0] };
@@ -203,7 +202,6 @@
 				y: going ? SEAT[winner][1] : CY + dy,
 				s: going ? 0.6 : 1.15,
 				z: 50 + i,
-				thud: !going,
 				ring: winner === t.pos && !going ? 'var(--brass)' : undefined
 			});
 		});
@@ -258,7 +256,6 @@
 			r={sp.r}
 			hovered={sp.hovered}
 			idle={sp.idle}
-			thud={sp.thud}
 			z={sp.z}
 			faceUp={sp.up}
 			{back}
