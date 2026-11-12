@@ -34,6 +34,18 @@ export interface WhistCtx {
 	lastTrick: boolean;
 	/** Other seats that missed their bids. */
 	othersMissed: number;
+	/** You took the first trick. */
+	firstTrick: boolean;
+	/** You played the Fool as 0 (to duck). */
+	foolLow: boolean;
+	/** The table's bids added up to more, or fewer, than the cards dealt. */
+	bidsOver: boolean;
+	bidsUnder: boolean;
+	/** Rounds made in a row, and on this board, counting this one. */
+	streak: number;
+	boardMade: number;
+	/** Made only because Hedge forgave being off by one. */
+	hedged: boolean;
 	handsThisBoard: number;
 }
 
@@ -70,7 +82,8 @@ function ctx(run: Run<WhistHand>): WhistCtx {
 		size: h.size,
 		bid: h.bids[W.PLAYER]!,
 		tricks: h.won[W.PLAYER],
-		made: W.madeBid(h, W.PLAYER),
+		made: W.madeBid(h, W.PLAYER) || (!!h.hedge && Math.abs(h.won[W.PLAYER] - h.bids[W.PLAYER]!) === 1),
+		hedged: !W.madeBid(h, W.PLAYER) && !!h.hedge && Math.abs(h.won[W.PLAYER] - h.bids[W.PLAYER]!) === 1,
 		blind: h.blind,
 		youDealt: h.dealer === W.PLAYER,
 		foolWins: mine.filter((p) => W.isFool(p.card)).length,
@@ -78,6 +91,12 @@ function ctx(run: Run<WhistHand>): WhistCtx {
 		lowWins: mine.filter((p) => !W.isFool(p.card) && p.card.rank < 10).length,
 		lastTrick: h.tricks.at(-1)?.winner === W.PLAYER,
 		othersMissed: [1, 2, 4].filter((s) => !W.madeBid(h, s)).length,
+		firstTrick: h.tricks[0]?.winner === W.PLAYER,
+		foolLow: h.tricks.some((t) => t.plays.some((p) => p.seat === W.PLAYER && W.isFool(p.card) && p.value === 0)),
+		bidsOver: W.bidTotal(h) > h.size,
+		bidsUnder: W.bidTotal(h) < h.size,
+		streak: 0,
+		boardMade: 0,
 		handsThisBoard: run.module.handsPerBoard - run.handsLeft + 1
 	};
 }
@@ -92,6 +111,19 @@ const RELICS: RelicDef<WhistCtx>[] = [
 	{ key: 'big_round', name: 'Big Round', rarity: 2, cost: 6, icon: 'nine_card_fit', text: '+50 chips on five-card rounds you make', score: (c) => (c.made && c.size === 5 ? { chips: 50 } : null) },
 	{ key: 'house_edge', name: 'House Edge', rarity: 2, cost: 6, icon: 'underdog', text: 'x1.5 mult on rounds you deal and make', score: (c) => (c.made && c.youDealt ? { xmult: 1.5 } : null) },
 	{ key: 'clean_slate', name: 'Clean Slate', rarity: 3, cost: 8, icon: 'clean_slate', text: 'x2 mult when you bid zero and make it', score: (c) => (c.made && c.bid === 0 ? { xmult: 2 } : null) },
+	{ key: 'first_blood', name: 'First Blood', rarity: 1, cost: 4, icon: 'lead_out_of_turn', text: '+30 chips when you take the first trick and make your bid', score: (c) => (c.made && c.firstTrick ? { chips: 30 } : null) },
+	{ key: 'overbooked', name: 'Overbooked', rarity: 1, cost: 4, icon: 'double_down', text: '+40 chips when the bids add up to more than the cards dealt and you make yours', score: (c) => (c.made && c.bidsOver ? { chips: 40 } : null) },
+	{ key: 'short_change', name: 'Short Change', rarity: 1, cost: 4, icon: 'tip_jar', text: '+40 chips when the bids add up to fewer than the cards dealt and you make yours', score: (c) => (c.made && c.bidsUnder ? { chips: 40 } : null) },
+	{
+		key: 'hot_streak', name: 'Hot Streak', rarity: 2, cost: 6, icon: 'slow_burn', text: '+0.5 mult for each round in a row you have made your bid',
+		describe: (r) => `+0.5 mult for each round in a row you have made your bid (now ${r.state.streak ?? 0} in a row)`,
+		score: (c) => (c.made && c.streak ? { mult: 0.5 * c.streak } : null),
+		onHandEnd: (c, r) => void (r.state.streak = c.streak)
+	},
+	{ key: 'fools_errand', name: 'Fool’s Errand', rarity: 2, cost: 6, icon: 'ploy_fall_guy', text: '+2 mult when you play the Fool as 0 and make your bid', score: (c) => (c.made && c.foolLow ? { mult: 2 } : null) },
+	{ key: 'the_hermit', name: 'The Hermit', rarity: 2, cost: 7, icon: 'wallflower', text: 'x2 mult when you are the only one to make your bid', score: (c) => (c.made && c.othersMissed === 3 ? { xmult: 2 } : null) },
+	{ key: 'the_emperor', name: 'The Emperor', rarity: 3, cost: 8, icon: 'crown_jewels', text: '+1 mult for each round you have made on this board', score: (c) => (c.made && c.boardMade ? { mult: c.boardMade } : null) },
+	{ key: 'the_chariot', name: 'The Chariot', rarity: 3, cost: 9, icon: 'slam_hunter', text: 'x2 mult when you bid 3 or more and make it', score: (c) => (c.made && c.bid >= 3 ? { xmult: 2 } : null) },
 	{ key: 'third_eye', name: 'Third Eye', rarity: 3, cost: 8, icon: 'card_counter', text: 'x3 mult on one-card rounds you make', score: (c) => (c.made && c.blind ? { xmult: 3 } : null) }
 ];
 
@@ -115,7 +147,11 @@ export const whist22: GameModule<WhistHand, WhistAction, WhistCtx> = {
 	deal(run) {
 		const i = (run.ext.round = run.ext.round === undefined ? 0 : (run.ext.round + 1) % W.ROUNDS.length);
 		run.ext.dealer = run.ext.dealer ? cards.nextSeat(run.ext.dealer) : cards.WEST;
+		// The Auctioneer: East deals, so you bid first, with nothing to go on.
+		if (R.bossIs(run, 'auctioneer')) run.ext.dealer = cards.EAST;
 		run.hand = W.deal(run.rng, run.ext.dealer, W.ROUNDS[i], run.pack);
+		// The Tyrant: no zero bids from you.
+		if (R.bossIs(run, 'tyrant')) run.hand.minBid = { seat: W.PLAYER, min: 1 };
 		R.homing(run, run.hand.hands, W.PLAYER, [run.hand.undealt]);
 		run.phase = R.PHASE.PRE;
 		runBids(run);
@@ -175,6 +211,13 @@ export const whist22: GameModule<WhistHand, WhistAction, WhistCtx> = {
 	stepAI: (run) => (aiStep(run.hand) ? 'trick' : 'card'),
 	score(run) {
 		const c = ctx(run);
+		// Rounds made in a row, and on this board (Hot Streak, The Emperor).
+		const boardKey = `${run.table}.${run.board}`;
+		if (run.ext.boardKey !== boardKey) (run.ext.boardKey = boardKey), (run.ext.boardMade = 0);
+		run.ext.streak = c.made ? (run.ext.streak ?? 0) + 1 : 0;
+		if (c.made) run.ext.boardMade = (run.ext.boardMade ?? 0) + 1;
+		c.streak = run.ext.streak;
+		c.boardMade = run.ext.boardMade;
 		const lines: Line[] = [];
 		const levels: string[] = [];
 		const word = (n: number) => `${n} trick${n === 1 ? '' : 's'}`;
@@ -190,7 +233,7 @@ export const whist22: GameModule<WhistHand, WhistAction, WhistCtx> = {
 		run.ext.made = (run.ext.made ?? 0) + 1;
 		lines.push({ label: `Made ${word(c.bid)} exactly`, chips: worth });
 		levels.push('exact');
-		let title = c.bid === 0 ? 'A clean zero' : `Made ${c.bid}`;
+		let title = c.hedged ? `Hedged: bid ${c.bid}, took ${c.tricks}` : c.bid === 0 ? 'A clean zero' : `Made ${c.bid}`;
 		if (c.bid === 0) {
 			lines.push({ label: 'Nothing taken, as promised', chips: 10 * c.size });
 			levels.push('nil');
@@ -206,9 +249,46 @@ export const whist22: GameModule<WhistHand, WhistAction, WhistCtx> = {
 	newPack: W.newDeck,
 	// Homing would hand you the Fool (or the 21) every round: too easy here.
 	noSeals: ['homing'],
+	decks: [
+		{
+			key: 'jester', name: 'Jester’s Deck', text: 'The Fool starts Prismatic, the 21 Etched', back: 'burned',
+			apply: (run) => run.pack.forEach((c) => (W.isFool(c) ? R.setMod(run, c, { edition: 'prismatic' }) : c.rank === 21 ? R.setMod(run, c, { edition: 'etched' }) : null))
+		}
+	],
 	relics: RELICS,
 	upgrades: UPGRADES,
 	ploys: [
+		{
+			key: 'second_sight', name: 'Second Sight', text: 'See everyone’s cards for the rest of this round', cost: 3, icon: 'ploy_spyglass',
+			when: [R.PHASE.PRE, R.PHASE.PLAY],
+			canUse: (run) => ((run.hand as WhistHand).spy ? [false, 'already seeing'] : [true]),
+			use: (run) => void ((run.hand as WhistHand).spy = true)
+		},
+		{
+			key: 'hedge', name: 'Hedge', text: 'This round, being off by one trick counts as making your bid', cost: 4, icon: 'ploy_umbrella',
+			when: [R.PHASE.PRE, R.PHASE.PLAY],
+			canUse: (run) => ((run.hand as WhistHand).hedge ? [false, 'already hedged'] : [true]),
+			use: (run) => void ((run.hand as WhistHand).hedge = true)
+		},
+		{
+			key: 'fools_bargain', name: 'Fool’s Bargain', text: 'Take the Fool from whoever holds it, giving them your lowest card', cost: 4, icon: 'wildcard',
+			when: [R.PHASE.PRE],
+			canUse: (run) => {
+				const h = run.hand as WhistHand;
+				if (h.hands[W.PLAYER].some(W.isFool)) return [false, 'you hold it already'];
+				if (![1, 2, 4].some((s) => h.hands[s].some(W.isFool))) return [false, 'no one was dealt it this round'];
+				return [true];
+			},
+			use: (run) => {
+				const h = run.hand as WhistHand;
+				const holder = [1, 2, 4].find((s) => h.hands[s].some(W.isFool))!;
+				const mine = h.hands[W.PLAYER];
+				const fool = h.hands[holder].find(W.isFool)!;
+				const low = mine.reduce((a, b) => (b.rank < a.rank ? b : a));
+				h.hands[holder].splice(h.hands[holder].indexOf(fool), 1, low);
+				mine.splice(mine.indexOf(low), 1, fool);
+			}
+		},
 		{
 			key: 'loophole', name: 'Loophole', text: 'When you deal, your bid may make the bids add up this round', cost: 3, icon: 'lead_out_of_turn',
 			when: [R.PHASE.PRE],
@@ -227,6 +307,9 @@ export const whist22: GameModule<WhistHand, WhistAction, WhistCtx> = {
 		{ key: 'miser', name: 'The Miser', text: 'Zero bids score half', tier: 1, score: (c) => (c.bid === 0 ? { label: 'The Miser', xmult: 0.5 } : null) },
 		{ key: 'short_table', name: 'The Short Table', text: 'Only two rounds on this board', tier: 2, hands: 2 },
 		{ key: 'jester', name: 'The Jester', text: '-50 chips for each trick you win with the Fool', tier: 2, score: (c) => (c.foolWins ? { label: 'The Jester', chips: -50 * c.foolWins } : null) },
+		{ key: 'auctioneer', name: 'The Auctioneer', text: 'You bid first every round', tier: 1 },
+		{ key: 'tyrant', name: 'The Tyrant', text: 'You can’t bid zero', tier: 2 },
+		{ key: 'fog_bids', name: 'The Fog', text: 'The other bids stay hidden until the round is over', tier: 2 },
 		{ key: 'perfectionist', name: 'The Perfectionist', text: 'x0.6 mult unless you take the last trick', tier: 3, score: (c) => (!c.lastTrick ? { label: 'The Perfectionist', xmult: 0.6 } : null) }
 	],
 	counters: (run) => ({ made: run.ext.made ?? 0 }),

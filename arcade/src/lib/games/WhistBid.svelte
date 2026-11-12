@@ -7,9 +7,12 @@
 	import { seatName } from '$kit/games/whist22/ai.ts';
 	import type { WhistHand } from '$kit/games/whist22/rules.ts';
 	import type { PreProps } from './types.ts';
+	import * as R from '$kit/src/run/run.ts';
 
 	let { run, act, v }: PreProps = $props();
 	const h = $derived((void v, run.hand as WhistHand));
+	// The Fog: the other bids hidden until the round is over.
+	const fog = $derived(R.bossIs(run, 'fog_bids'));
 </script>
 
 	<div class="panel">
@@ -21,23 +24,26 @@
 				<div class="who" class:me={s === W.PLAYER}>{seatName(s)}{s === h.dealer ? ' (dealer)' : ''}</div>
 				<div class="dots">
 					{#if b === null}<span class="wait">{s === W.PLAYER ? 'your bid' : 'to bid'}</span>
+					{:else if fog && s !== W.PLAYER}<span class="wait">bid hidden by the Fog</span>
 					{:else}{#each Array(h.size) as _, i}<i class:on={i < b}></i>{/each}{#if b === 0}<span class="zero">none</span>{/if}{/if}
 				</div>
 			{/each}
+			{#if !fog}
 			<div class="who total">Bid so far</div>
 			<div class="dots">
 				{#each Array(Math.max(h.size, W.bidTotal(h))) as _, i}<i class:on={i < W.bidTotal(h)} class:over={i >= h.size}></i>{/each}
 				<span class="zero">{W.bidTotal(h)} of {h.size}</span>
 			</div>
+			{/if}
 		</div>
 		<div class="row">
 			{#each Array(h.size + 1) as _, b}
 				{@const ok = W.canBid(h, W.PLAYER, b)}
-				<Button size="sm" variant={ok ? 'brass' : 'plain'} enabled={ok} title={ok ? '' : 'The dealer can’t make the bids add up'} onclick={() => act({ t: 'bid', bid: b })} style="width: 52px">{b}</Button>
+				<Button size="sm" variant={ok ? 'brass' : 'plain'} enabled={ok} title={ok ? '' : h.minBid && b < h.minBid.min ? 'The Tyrant: no zero bids' : 'The dealer can’t make the bids add up'} onclick={() => act({ t: 'bid', bid: b })} style="width: 52px">{b}</Button>
 			{/each}
 		</div>
 		<div class="hint">
-			{#if h.blind}You can see everyone’s card but yours: bid 1 if yours beats theirs.{:else if W.forbidden(h, W.PLAYER) !== null}You deal, so not {W.forbidden(h, W.PLAYER)}: the bids can’t add up to {h.size}{/if}
+			{#if h.minBid}The Tyrant: you can’t bid zero.{:else if h.blind}You can see everyone’s card but yours: bid 1 if yours beats theirs.{:else if W.forbidden(h, W.PLAYER) !== null}You deal, so not {W.forbidden(h, W.PLAYER)}: the bids can’t add up to {h.size}{/if}
 		</div>
 	</div>
 

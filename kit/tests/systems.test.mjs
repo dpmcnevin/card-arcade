@@ -285,3 +285,34 @@ test('Hand Swap: every game trades your hand with West before play', async () =>
 		assert.ok(done, `${m.id}: found a moment to swap`);
 	}
 });
+
+test('whist22: the Tyrant, the dealer rule giving way, Hedge, Fool’s Bargain', async () => {
+	const W = await import('../games/whist22/rules.ts');
+	const { whist22 } = await import('../games/whist22/module.ts');
+	const rng = newRng('w22');
+	// The Tyrant: no zero bid; with the dealer rule too in a one-card round, the dealer rule gives way.
+	const h = W.deal(rng, cards.SOUTH, 1);
+	h.minBid = { seat: cards.SOUTH, min: 1 };
+	for (const s of [cards.WEST, cards.NORTH, cards.EAST]) W.bid(h, s, 0);
+	assert.equal(W.canBid(h, cards.SOUTH, 0), false, 'no zero under the Tyrant');
+	assert.equal(W.canBid(h, cards.SOUTH, 1), true, 'the barred 1 is allowed: nothing else is');
+	// Hedge: off by one counts as made.
+	const run = R.newRun(whist22, 'HEDGE');
+	run.hand.hedge = true;
+	while (run.phase === R.PHASE.PRE || run.phase === R.PHASE.PLAY) R.act(run, whist22.bot(run, rng));
+	const hh = run.hand;
+	const off = Math.abs(hh.won[cards.SOUTH] - hh.bids[cards.SOUTH]);
+	if (off === 1) assert.ok(run.result.made && /Hedged/.test(run.result.title), 'off by one, hedged: made');
+	// Fool's Bargain: take the Fool, give your lowest card.
+	for (let i = 0; i < 30; i++) {
+		const r = R.newRun(whist22, `BARGAIN${i}`);
+		r.ploys = ['fools_bargain'];
+		if (!R.canUsePloy(r, 0)[0]) continue;
+		const low = Math.min(...r.hand.hands[cards.SOUTH].map((c) => c.rank));
+		R.usePloy(r, 0);
+		assert.ok(r.hand.hands[cards.SOUTH].some(W.isFool), 'you hold the Fool');
+		assert.ok(!r.hand.hands[cards.SOUTH].some((c) => c.rank === low && !W.isFool(c)), 'your lowest card went');
+		return;
+	}
+	assert.fail('no deal where the Fool could be bargained for');
+});

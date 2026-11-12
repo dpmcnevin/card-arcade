@@ -3,6 +3,7 @@ import { whist22 } from '$kit/games/whist22/module.ts';
 import { seatName } from '$kit/games/whist22/ai.ts';
 import type { WhistHand } from '$kit/games/whist22/rules.ts';
 import type { Run } from '$kit/src/run/run.ts';
+import * as R from '$kit/src/run/run.ts';
 import * as cards from '$kit/src/core/rules/cards.ts';
 import type { GameUI, TableView } from './types.ts';
 import { POS } from './types.ts';
@@ -13,13 +14,17 @@ function view(run: Run<WhistHand>): TableView {
 	const h = run.hand;
 	// The one-card round: everyone's card on their forehead, yours hidden from you.
 	const forehead = h.blind && !h.complete && h.trick.length + h.tricks.length * 4 < 4;
+	// The Fog: the other bids hidden until the round is over.
+	const fog = R.bossIs(run, 'fog_bids') && !h.complete;
+	const shownBid = (s: number) => (h.bids[s] === null ? null : fog && s !== W.PLAYER ? '?' : String(h.bids[s]));
 	const seats = [1, 2, 3, 4].map((s) => ({
 		pos: POS[s],
 		name: seatName(s),
 		dealer: s === h.dealer,
 		cards: h.hands[s],
-		faceUp: forehead ? s !== W.PLAYER : s === W.PLAYER,
-		tally: h.bids[s] !== null ? `${h.won[s]}/${h.bids[s]}` : undefined,
+		// Second Sight: everyone's cards in view (your own too, on your forehead).
+		faceUp: h.spy ? true : forehead ? s !== W.PLAYER : s === W.PLAYER,
+		tally: shownBid(s) !== null ? `${h.won[s]}/${shownBid(s)}` : undefined,
 		active: !h.complete && h.turn === s,
 		playable: s === W.PLAYER
 	}));
@@ -49,8 +54,9 @@ export const whist22UI: GameUI = {
 	},
 	handInfo(run) {
 		const h = run.hand as WhistHand;
-		const rows = [1, 2, 3, 4].map((s) => ({ label: seatName(s), value: h.bids[s] === null ? '–' : `${h.won[s]}/${h.bids[s]}`, hot: s === W.PLAYER && h.bids[s] !== null && h.won[s] > h.bids[s]! }));
-		return { title: `This round · ${h.size} card${h.size === 1 ? '' : 's'} · bids ${W.bidTotal(h)} of ${h.size}`, rows: [rows[2], rows[3], rows[0], rows[1]] };
+		const fog = R.bossIs(run, 'fog_bids') && !h.complete;
+		const rows = [1, 2, 3, 4].map((s) => ({ label: seatName(s), value: h.bids[s] === null ? '–' : fog && s !== W.PLAYER ? `${h.won[s]}/?` : `${h.won[s]}/${h.bids[s]}`, hot: s === W.PLAYER && h.bids[s] !== null && h.won[s] > h.bids[s]! }));
+		return { title: `This round · ${h.size} card${h.size === 1 ? '' : 's'} · ${fog ? 'bids hidden' : `bids ${W.bidTotal(h)} of ${h.size}`}`, rows: [rows[2], rows[3], rows[0], rows[1]] };
 	},
 	scoreChips(run) {
 		const h = run.hand as WhistHand;

@@ -56,6 +56,12 @@ export interface WhistHand {
 	undealt: Card[];
 	/** A seat the dealer rule doesn't bind this round (the Loophole ploy). */
 	loophole?: number;
+	/** A seat that may not bid below a number (the Tyrant: no zero bids). */
+	minBid?: { seat: number; min: number };
+	/** Everyone's cards in view for the rest of the round (Second Sight). */
+	spy?: boolean;
+	/** Off by one counts as made for the player this round (Hedge). */
+	hedge?: boolean;
 }
 
 export function deal(rng: RNG, dealer: number, size: number, pack: Card[] = newDeck()): WhistHand {
@@ -77,8 +83,20 @@ export function forbidden(h: WhistHand, seat: number): number | null {
 	return f >= 0 && f <= h.size ? f : null;
 }
 
+function bidOk(h: WhistHand, seat: number, b: number, dealerRule: boolean): boolean {
+	if (!Number.isInteger(b) || b < 0 || b > h.size) return false;
+	if (h.minBid && h.minBid.seat === seat && b < h.minBid.min) return false;
+	return !dealerRule || b !== forbidden(h, seat);
+}
+
 export function canBid(h: WhistHand, seat: number, b: number): boolean {
-	return h.stage === 'bid' && seat === h.turn && Number.isInteger(b) && b >= 0 && b <= h.size && b !== forbidden(h, seat);
+	if (h.stage !== 'bid' || seat !== h.turn) return false;
+	if (bidOk(h, seat, b, true)) return true;
+	// A boss's rule and the dealer rule together could leave no bid at all
+	// (the one-card round, no zero bids, the others all bid 0): then the
+	// dealer rule gives way.
+	const any = Array.from({ length: h.size + 1 }, (_, i) => i).some((x) => bidOk(h, seat, x, true));
+	return !any && bidOk(h, seat, b, false);
 }
 
 export function bid(h: WhistHand, seat: number, b: number) {
