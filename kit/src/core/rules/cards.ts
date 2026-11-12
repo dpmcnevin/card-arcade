@@ -190,10 +190,20 @@ export function deal(rng: RNG): Hands {
 	return hands;
 }
 
-/** Sort into the layout bridge players use: spades first, high cards left. */
+/** Suits in display order: spades first, then grouped by color (black
+ *  suits, then red) so a sorted hand, or a pack laid out by suit, crosses
+ *  from black to red only once, instead of alternating. */
+export const SUIT_ORDER = ([false, true] as const).flatMap((red) =>
+	[4, 3, 2, 1].filter((s) => SUITS[s].red === red)
+);
+/** A suit's place in display order (lower sorts first); -1 for Trumps. */
+export const suitRank = (s: number) => SUIT_ORDER.indexOf(s);
+
+/** Sort into the layout bridge players use: spades first, high cards left,
+ *  black and red suits kept apart. */
 export function sortHand(hand: Hand): Hand {
 	return luaSort(hand, (a, b) => {
-		if (a.suit !== b.suit) return a.suit > b.suit;
+		if (a.suit !== b.suit) return suitRank(a.suit) < suitRank(b.suit);
 		return a.rank > b.rank;
 	});
 }

@@ -32,7 +32,7 @@
 	const rk = (c: Card) => arcade.ui?.rankOrder?.(c) ?? c.rank;
 	/** The card being looked at (click a card to see what it is). */
 	let looking = $state<Card | null>(null);
-	const rows = $derived([5, 4, 3, 2, 1].map((s) => run.pack.filter((c) => c.suit === s).sort((a, b) => rk(b) - rk(a))).filter((r) => r.length));
+	const rows = $derived([cards.TRUMPS, ...cards.SUIT_ORDER].map((s) => run.pack.filter((c) => c.suit === s).sort((a, b) => rk(b) - rk(a))).filter((r) => r.length));
 </script>
 
 {#each rows as row}

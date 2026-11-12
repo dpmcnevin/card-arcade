@@ -79,8 +79,8 @@
 		const o = arcade.order;
 		if (o.length && hand.every((c) => o.includes(key(c)))) return hand.slice().sort((a, b) => o.indexOf(key(a)) - o.indexOf(key(b)));
 		const rk = (c: Card) => arcade.ui?.rankOrder?.(c) ?? c.rank;
-		const bySuit = (a: Card, b: Card) => b.suit - a.suit || rk(a) - rk(b);
-		const byRank = (a: Card, b: Card) => rk(a) - rk(b) || b.suit - a.suit;
+		const bySuit = (a: Card, b: Card) => cards.suitRank(a.suit) - cards.suitRank(b.suit) || rk(a) - rk(b);
+		const byRank = (a: Card, b: Card) => rk(a) - rk(b) || cards.suitRank(a.suit) - cards.suitRank(b.suit);
 		return hand.slice().sort(arcade.sortBy === 'rank' ? byRank : bySuit);
 	}
 

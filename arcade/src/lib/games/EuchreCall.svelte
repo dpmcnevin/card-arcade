@@ -12,7 +12,7 @@
 	const h = $derived((void v, run.hand as EuchreHand));
 	let alone = $state(false);
 	const stuck = $derived(h.round === 2 && h.dealer === 3);
-	const suits = $derived([4, 3, 2, 1].filter((s) => s !== h.upcard.suit));
+	const suits = $derived(cards.SUIT_ORDER.filter((s) => s !== h.upcard.suit));
 </script>
 
 <div class="panel">
