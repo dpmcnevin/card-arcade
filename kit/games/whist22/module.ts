@@ -1,9 +1,10 @@
 // Whist 22, as a cardkit roguelike: you're South at a table of four, playing
 // the Tarot trumps and the Fool. Each hand is one round (5, 4, 3, 2, 1, 2, 3,
-// 4, 5 cards, around and around the run). Bid exactly how many tricks you'll
-// take, then take exactly that: a made bid scores, more for bigger bids; a
-// clean zero and the blind one-card round have their own bonuses. Miss, and
-// the round scores nothing. 8 tables x 3 boards x 3 rounds.
+// 4 cards, then 5 again, around and around the run). Bid exactly how many
+// tricks you'll take, then take exactly that: a made bid scores, more for
+// bigger bids; a clean zero and the blind one-card round have their own
+// bonuses. Off by one scores a quarter; further off, nothing. 8 tables x 3
+// boards x 3 rounds.
 
 import * as cards from '../../src/core/rules/cards.ts';
 import * as W from './rules.ts';
@@ -36,7 +37,7 @@ export interface WhistCtx {
 	handsThisBoard: number;
 }
 
-const TABLE_BASE = [70, 110, 160, 220, 300, 400, 520, 680];
+const TABLE_BASE = [70, 120, 180, 260, 370, 510, 690, 920];
 const BOARD_SCALE = [1, 1.25, 1.55];
 
 function runBids(run: Run<WhistHand>, stepwise = false) {
@@ -96,7 +97,7 @@ const RELICS: RelicDef<WhistCtx>[] = [
 
 const UPGRADES: UpgradeDef[] = [
 	{ key: 'exact', name: 'Exact', icon: 'safety_net', text: 'Level up rounds where you make your bid', chips: 20, mult: 0.5 },
-	{ key: 'nil', name: 'Nil', icon: 'clean_slate', text: 'Level up rounds where you bid zero and make it', chips: 25, mult: 0.6 },
+	{ key: 'nil', name: 'Nil', icon: 'clean_slate', text: 'Level up rounds where you bid zero and make it', chips: 20, mult: 0.4 },
 	{ key: 'blind', name: 'Blind', icon: 'card_counter', text: 'Level up one-card rounds you make', chips: 40, mult: 1 }
 ];
 
@@ -177,15 +178,21 @@ export const whist22: GameModule<WhistHand, WhistAction, WhistCtx> = {
 		const lines: Line[] = [];
 		const levels: string[] = [];
 		const word = (n: number) => `${n} trick${n === 1 ? '' : 's'}`;
+		// What the bid is worth made: more for every trick promised.
+		const worth = 40 + 40 * c.bid;
 		if (!c.made) {
+			// Off by one: a quarter of it, so one bad round isn't the whole board.
+			if (Math.abs(c.tricks - c.bid) === 1) {
+				return { title: `So close: bid ${c.bid}, took ${c.tricks}`, made: true, lines: [{ label: `Off by one: a quarter of ${worth}`, chips: Math.round(worth / 4) }], ctx: c, levels };
+			}
 			return { title: `Missed: bid ${c.bid}, took ${c.tricks}`, made: false, lines: [{ label: `Bid ${word(c.bid)}, took ${c.tricks}`, chips: 0 }], ctx: c, levels };
 		}
 		run.ext.made = (run.ext.made ?? 0) + 1;
-		lines.push({ label: `Made ${word(c.bid)} exactly`, chips: 40 + 30 * c.bid });
+		lines.push({ label: `Made ${word(c.bid)} exactly`, chips: worth });
 		levels.push('exact');
 		let title = c.bid === 0 ? 'A clean zero' : `Made ${c.bid}`;
 		if (c.bid === 0) {
-			lines.push({ label: 'Nothing taken, as promised', chips: 20 * c.size });
+			lines.push({ label: 'Nothing taken, as promised', chips: 10 * c.size });
 			levels.push('nil');
 		}
 		if (c.blind) {

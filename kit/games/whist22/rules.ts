@@ -1,5 +1,5 @@
 // Whist 22: the twenty-one Tarot trumps and the Fool, no suits. With four
-// players, rounds deal 5, 4, 3, 2, 1, then 2, 3, 4, 5 cards each (two cards
+// players, rounds deal 5, 4, 3, 2, 1, then 2, 3, 4 and back to 5 (two cards
 // stay out of a five-card round). Starting left of the dealer, everyone bids
 // exactly how many tricks they'll take; the dealer bids last and may not make
 // the bids add up to the cards dealt, so someone must miss. The highest card
@@ -12,8 +12,9 @@ import type { Card, Hands } from '../../src/core/rules/cards.ts';
 import type { RNG } from '../../src/core/rules/rng.ts';
 
 export const PLAYER = cards.SOUTH;
-/** The round sizes, in order, over and over. */
-export const ROUNDS = [5, 4, 3, 2, 1, 2, 3, 4, 5];
+/** The round sizes, in order, over and over: down to one and back up, each
+ *  size once a lap (the 5 that ends a lap is the 5 that starts the next). */
+export const ROUNDS = [5, 4, 3, 2, 1, 2, 3, 4];
 
 export const isFool = (c: Card) => c.suit === cards.TRUMPS && c.rank === 0;
 

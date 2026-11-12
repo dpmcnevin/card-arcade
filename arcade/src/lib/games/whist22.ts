@@ -65,8 +65,8 @@ export const whist22UI: GameUI = {
 	},
 	help: [
 		{ title: 'The cards', text: 'Just the twenty-one trumps and the Fool: no suits, nothing to follow. The highest card takes the trick. The Fool counts 0 or 22: you say which when you play it.' },
-		{ title: 'Rounds', text: 'Round by round the hands shrink, 5, 4, 3, 2, 1 cards each, then grow back to 5, and around again. In the one-card round you hold your card to your forehead: you see everyone else’s, never your own.' },
+		{ title: 'Rounds', text: 'Round by round the hands shrink, 5, 4, 3, 2, 1 cards each, then grow back through 2, 3, 4 to 5, and around again. In the one-card round you hold your card to your forehead: you see everyone else’s, never your own.' },
 		{ title: 'Bidding', text: 'Starting left of the dealer, everyone says exactly how many tricks they’ll take. The dealer bids last and may not make the bids add up to the cards dealt, so someone always misses.' },
-		{ title: 'Scoring', text: 'Take exactly your bid: 40 chips plus 30 a trick bid, more for a clean zero or for making the blind round. Take more or fewer and the round scores nothing.' }
+		{ title: 'Scoring', text: 'Take exactly your bid: 40 chips plus 40 a trick bid, more for a clean zero or for making the blind round. Off by one trick scores a quarter of that; further off, nothing.' }
 	]
 };
