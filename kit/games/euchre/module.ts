@@ -180,6 +180,13 @@ export const euchre: GameModule<EuchreHand, EuchreAction, EuchreCtx> = {
 			while (!h.complete) E.play(h, h.turn, ai.chooseCard(h, h.turn));
 		}
 	},
+	swapHand: {
+		can: (run) => (run.phase === R.PHASE.PRE && run.hand.trump === null && run.hand.turn === E.PLAYER ? [true] : [false, 'only at your call']),
+		swap: (run) => {
+			const hs = run.hand.hands;
+			[hs[E.PLAYER], hs[cards.WEST]] = [hs[cards.WEST], hs[E.PLAYER]];
+		}
+	},
 	redeal(run) {
 		run.ext.dealer = cards.EAST;
 		return euchre.deal(run);

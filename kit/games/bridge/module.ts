@@ -236,6 +236,17 @@ export const bridge: GameModule<Deal, BridgeAction, relicsLib.ScoreCtx> = {
 	handOver: (run) => !!run.hand.state?.complete,
 	aiToMove: (run) => !!run.hand.state && !run.hand.state.complete && !isPlayerTurn(run),
 	untouched: (run) => !run.hand.state || run.hand.state.tricks.length === 0,
+	// While bidding: your hand for West's (you still declare, from it).
+	swapHand: {
+		can: (run) => (run.phase === R.PHASE.PRE && !run.hand.contract ? [true] : [false, 'only while bidding']),
+		swap: (run) => {
+			const d = run.hand;
+			const S = cards.SOUTH,
+				W = cards.WEST;
+			[d.hands[S], d.hands[W]] = [d.hands[W], d.hands[S]];
+			[d.original[S], d.original[W]] = [d.original[W], d.original[S]];
+		}
+	},
 	// You declare every board, so there's no dealer to be: fresh cards.
 	redeal: (run) => bridge.deal(run),
 	settled(run) {

@@ -261,6 +261,14 @@ export const hearts: GameModule<HeartsHand, HeartsAction, relicsLib.ScoreCtx> = 
 	},
 	handOver: (run) => !!run.hand.state?.complete,
 	untouched: (run) => !run.hand.state || run.hand.state.tricks.length === 0,
+	// Before the pass: your dealt hand for West's.
+	swapHand: {
+		can: (run) => (run.phase === R.PHASE.PRE && !run.hand.state ? [true] : [false, 'only before you pass']),
+		swap: (run) => {
+			const d = run.hand.dealt;
+			[d[H.PLAYER], d[cards.WEST]] = [d[cards.WEST], d[H.PLAYER]];
+		}
+	},
 	// No dealer in Hearts: fresh cards, the same pass.
 	redeal(run) {
 		run.ext.handCount = Math.max(0, (run.ext.handCount ?? 1) - 1);

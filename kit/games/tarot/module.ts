@@ -195,6 +195,13 @@ export const tarot: GameModule<TarotHand, TarotAction, TarotCtx> = {
 			while (!h.complete) T.play(h, h.turn, ai.chooseCard(h, h.turn));
 		}
 	},
+	swapHand: {
+		can: (run) => (run.phase === R.PHASE.PRE && run.hand.stage === 'bid' && run.hand.turn === T.PLAYER ? [true] : [false, 'only at your bid']),
+		swap: (run) => {
+			const hs = run.hand.hands;
+			[hs[T.PLAYER], hs[cards.WEST]] = [hs[cards.WEST], hs[T.PLAYER]];
+		}
+	},
 	redeal(run) {
 		run.ext.dealer = cards.EAST;
 		return tarot.deal(run);

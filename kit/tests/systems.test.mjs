@@ -262,3 +262,25 @@ test('a homing seal always deals its card to you, even from the kitty, the dog o
 		}
 	}
 });
+
+test('Hand Swap: every game trades your hand with West before play', async () => {
+	const { tarot } = await import('../games/tarot/module.ts');
+	const { whist22 } = await import('../games/whist22/module.ts');
+	const handsOf = (m, run) => (m === hearts ? run.hand.dealt : run.hand.hands);
+	for (const m of [hearts, bridge, euchre, tarot, whist22]) {
+		assert.ok(R.allPloys(m).some((p) => p.key === 'hand_swap'), `${m.id} offers it`);
+		let done = false;
+		for (let i = 0; i < 30 && !done; i++) {
+			const run = R.newRun(m, `SWAP-${m.id}-${i}`);
+			run.ploys = ['hand_swap'];
+			if (!R.canUsePloy(run, 0)[0]) continue;
+			const ids = (s) => handsOf(m, run)[s].map((c) => c.id).sort().join(',');
+			const [mine, west] = [ids(cards.SOUTH), ids(cards.WEST)];
+			R.usePloy(run, 0);
+			assert.equal(ids(cards.SOUTH), west, `${m.id}: you hold West's cards`);
+			assert.equal(ids(cards.WEST), mine, `${m.id}: West holds yours`);
+			done = true;
+		}
+		assert.ok(done, `${m.id}: found a moment to swap`);
+	}
+});

@@ -36,7 +36,7 @@ export interface WhistCtx {
 	handsThisBoard: number;
 }
 
-const TABLE_BASE = [80, 130, 200, 290, 400, 540, 720, 950];
+const TABLE_BASE = [70, 110, 160, 220, 300, 400, 520, 680];
 const BOARD_SCALE = [1, 1.25, 1.55];
 
 function runBids(run: Run<WhistHand>, stepwise = false) {
@@ -135,6 +135,13 @@ export const whist22: GameModule<WhistHand, WhistAction, WhistCtx> = {
 			if (!stepwise) runPlay(run);
 		} else {
 			while (!h.complete) aiStep(h);
+		}
+	},
+	swapHand: {
+		can: (run) => (run.phase === R.PHASE.PRE && run.hand.stage === 'bid' && run.hand.turn === W.PLAYER ? [true] : [false, 'only at your bid']),
+		swap: (run) => {
+			const hs = run.hand.hands;
+			[hs[W.PLAYER], hs[cards.WEST]] = [hs[cards.WEST], hs[W.PLAYER]];
 		}
 	},
 	redeal(run) {

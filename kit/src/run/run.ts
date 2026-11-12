@@ -202,6 +202,9 @@ export interface GameModule<H = any, A = any, S = any> {
 	/** Deal this hand again, with the player as dealer where the game has
 	 *  one, without counting a new hand (the Steal the Deal ploy). */
 	redeal?(run: Run<H>): { hand: H; phase: 'pre' | 'play' };
+	/** Trade the player's hand with the seat on their left (the Hand Swap
+	 *  ploy): `can` says whether it's allowed now, `swap` does it. */
+	swapHand?: { can(run: Run<H>): [boolean, string?]; swap(run: Run<H>): void };
 	/** Nothing left in this hand can change its score (every way to play the
 	 *  rest ends the same): the player may claim it. See settle.ts. */
 	settled?(run: Run<H>): boolean;
@@ -341,6 +344,13 @@ export const ENDLESS_GROWTH = 1.6;
 
 /** Ploys every game gets. */
 export const GENERIC_PLOYS: PloyDef[] = [
+	{
+		key: 'hand_swap', name: 'Hand Swap', text: 'Trade hands with the player on your left, before play begins', cost: 4, icon: 'transfer',
+		when: [PHASE.PRE],
+		only: (m) => !!m.swapHand,
+		canUse: (run) => run.module.swapHand!.can(run),
+		use: (run) => run.module.swapHand!.swap(run)
+	},
 	{
 		key: 'steal_deal', name: 'Steal the Deal', text: 'Deal this hand again, with you as the dealer', cost: 4, icon: 'redeal',
 		when: [PHASE.PRE, PHASE.PLAY],
