@@ -197,6 +197,8 @@ export const whist22: GameModule<WhistHand, WhistAction, WhistCtx> = {
 		return { title, made: true, lines, ctx: c, levels, played };
 	},
 	newPack: W.newDeck,
+	// Homing would hand you the Fool (or the 21) every round: too easy here.
+	noSeals: ['homing'],
 	relics: RELICS,
 	upgrades: UPGRADES,
 	ploys: [

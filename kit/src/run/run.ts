@@ -202,6 +202,8 @@ export interface GameModule<H = any, A = any, S = any> {
 	/** Deal this hand again, with the player as dealer where the game has
 	 *  one, without counting a new hand (the Steal the Deal ploy). */
 	redeal?(run: Run<H>): { hand: H; phase: 'pre' | 'play' };
+	/** Seals this game leaves out (Whist 22: Homing would hand you the Fool every round). */
+	noSeals?: string[];
 	/** Trade the player's hand with the seat on their left (the Hand Swap
 	 *  ploy): `can` says whether it's allowed now, `swap` does it. */
 	swapHand?: { can(run: Run<H>): [boolean, string?]; swap(run: Run<H>): void };
@@ -417,7 +419,7 @@ export function allPloys(m: GameModule): PloyDef[] {
 	return [...GENERIC_PLOYS, ...(m.ploys ?? [])].filter((p) => !p.only || p.only(m));
 }
 export function allSeals(m: GameModule): SealDef[] {
-	return [...C.SEALS, ...(m.seals ?? [])];
+	return [...C.SEALS, ...(m.seals ?? [])].filter((s) => !m.noSeals?.includes(s.key));
 }
 export function allDecks(m: GameModule): DeckDef[] {
 	return [...GENERIC_DECKS, ...(m.decks ?? [])];
