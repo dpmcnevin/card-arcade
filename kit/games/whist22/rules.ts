@@ -51,6 +51,8 @@ export interface WhistHand {
 	complete: boolean;
 	/** The one-card round: you can't see your own card. */
 	blind: boolean;
+	/** Cards no one was dealt this round. */
+	undealt: Card[];
 	/** A seat the dealer rule doesn't bind this round (the Loophole ploy). */
 	loophole?: number;
 }
@@ -61,7 +63,7 @@ export function deal(rng: RNG, dealer: number, size: number, pack: Card[] = newD
 	let k = 0;
 	for (let i = 0; i < size; i++) for (let s = 1; s <= 4; s++) hands[s].push(deck[k++]);
 	const first = cards.nextSeat(dealer);
-	return { size, dealer, hands, bids: [null, null, null, null, null], stage: 'bid', turn: first, leader: first, trick: [], tricks: [], won: [0, 0, 0, 0, 0], complete: false, blind: size === 1 };
+	return { size, dealer, hands, bids: [null, null, null, null, null], stage: 'bid', turn: first, leader: first, trick: [], tricks: [], won: [0, 0, 0, 0, 0], complete: false, blind: size === 1, undealt: deck.slice(k) };
 }
 
 /** Bids made so far, added up. */

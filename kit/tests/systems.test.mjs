@@ -245,3 +245,20 @@ test('Steal the Deal: every game deals the hand again, with you as the dealer wh
 		if (m === hearts) assert.equal(run.hand.passDir, before.pass, 'the same pass');
 	}
 });
+
+test('a homing seal always deals its card to you, even from the kitty, the dog or the undealt cards', async () => {
+	const { tarot } = await import('../games/tarot/module.ts');
+	const { whist22 } = await import('../games/whist22/module.ts');
+	for (const m of [hearts, euchre, tarot, whist22]) {
+		for (let i = 0; i < 40; i++) {
+			const run = R.newRun(m, `HOME-${m.id}-${i}`);
+			const target = run.pack[(i * 7) % run.pack.length];
+			R.setMod(run, target, { seal: 'homing' });
+			R.usePloy(Object.assign(run, { ploys: ['steal_deal'] }), 0);
+			const h = run.hand;
+			const mine = (m === hearts ? h.dealt ?? h.state?.hands : h.hands)[cards.SOUTH];
+			const held = mine.some((c) => c.id === target.id) || (m === tarot && h.taker === cards.SOUTH && h.aside?.some((c) => c.id === target.id));
+			assert.ok(held, `${m.id} ${i}: the homing card (${cards.name(target)}) is in your hand`);
+		}
+	}
+});

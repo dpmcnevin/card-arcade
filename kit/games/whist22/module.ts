@@ -115,7 +115,7 @@ export const whist22: GameModule<WhistHand, WhistAction, WhistCtx> = {
 		const i = (run.ext.round = run.ext.round === undefined ? 0 : (run.ext.round + 1) % W.ROUNDS.length);
 		run.ext.dealer = run.ext.dealer ? cards.nextSeat(run.ext.dealer) : cards.WEST;
 		run.hand = W.deal(run.rng, run.ext.dealer, W.ROUNDS[i], run.pack);
-		R.homing(run, run.hand.hands, W.PLAYER);
+		R.homing(run, run.hand.hands, W.PLAYER, [run.hand.undealt]);
 		run.phase = R.PHASE.PRE;
 		runBids(run);
 		return { hand: run.hand, phase: run.hand.stage === 'bid' ? 'pre' : 'play' };

@@ -52,6 +52,13 @@ const TABLE_BASE = [100, 175, 280, 410, 580, 800, 1100, 1480];
 const BOARD_SCALE = [1, 1.25, 1.55];
 const PER_TRICK = 25;
 
+/** The dealer's discard after taking the upcard: never a homing card (it
+ *  was promised to you). */
+const discardFor = (run: Run<EuchreHand>) => (hand: Card[], trump: number) => {
+	const free = hand.filter((c) => !R.sealOf(run, c)?.homing);
+	return ai.discard(free.length ? free : hand, trump);
+};
+
 /** Let the AI seats call until it's your call or trump is made. */
 function runCalls(run: Run<EuchreHand>, stepwise = false) {
 	const h = run.hand;
@@ -59,7 +66,7 @@ function runCalls(run: Run<EuchreHand>, stepwise = false) {
 	while (h.trump === null && h.turn !== E.PLAYER) {
 		if (++guard > 20) throw new Error('euchre: calls stuck');
 		const c = ai.call(h, h.turn);
-		if (c.suit !== null) E.makeTrump(h, h.turn, c.suit, c.alone, ai.discard);
+		if (c.suit !== null) E.makeTrump(h, h.turn, c.suit, c.alone, discardFor(run));
 		else E.pass(h, h.turn);
 	}
 	if (h.trump !== null) {
@@ -144,7 +151,10 @@ export const euchre: GameModule<EuchreHand, EuchreAction, EuchreCtx> = {
 	deal(run) {
 		const dealer = (run.ext.dealer = run.ext.dealer ? cards.nextSeat(run.ext.dealer) : cards.WEST);
 		run.hand = E.deal(run.rng, dealer, run.pack);
-		R.homing(run, run.hand.hands, E.PLAYER);
+		// The turned-up card is one more no one was dealt.
+		const up = [run.hand.upcard];
+		R.homing(run, run.hand.hands, E.PLAYER, [run.hand.kitty, up]);
+		run.hand.upcard = up[0];
 		run.phase = R.PHASE.PRE;
 		runCalls(run);
 		return { hand: run.hand, phase: run.hand.trump === null ? 'pre' : 'play' };
@@ -157,7 +167,7 @@ export const euchre: GameModule<EuchreHand, EuchreAction, EuchreCtx> = {
 			if (a.t === 'pass') E.pass(h, E.PLAYER);
 			else {
 				if (h.round === 1 ? a.suit !== h.upcard.suit : a.suit === h.upcard.suit) throw new Error('euchre: you can’t name that suit now');
-				E.makeTrump(h, E.PLAYER, a.suit, !!a.alone, ai.discard);
+				E.makeTrump(h, E.PLAYER, a.suit, !!a.alone, discardFor(run));
 			}
 			runCalls(run, stepwise);
 		} else if (a.t === 'play') {

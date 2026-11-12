@@ -61,7 +61,7 @@ const CONTRACT_X = [1, 1, 1.5, 2, 2.5];
 function newDeal(run: Run<TarotHand>) {
 	run.ext.dealer = run.ext.dealer ? cards.nextSeat(run.ext.dealer) : cards.WEST;
 	run.hand = T.deal(run.rng, run.ext.dealer, run.pack);
-	R.homing(run, run.hand.hands, T.PLAYER);
+	R.homing(run, run.hand.hands, T.PLAYER, [run.hand.dog]);
 	run.phase = R.PHASE.PRE;
 }
 

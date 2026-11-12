@@ -211,8 +211,8 @@ export const hearts: GameModule<HeartsHand, HeartsAction, relicsLib.ScoreCtx> = 
 	goal: (table, board) => round5(TABLE_BASE[Math.min(table, 8) - 1] * BOARD_SCALE[board - 1]),
 	boardName: (run) => (run.board === 3 ? 'High Board' : `Board ${run.board}`),
 	deal(run) {
-		const { hands } = H.dealPack(run.rng, run.pack);
-		R.homing(run, hands, H.PLAYER);
+		const { hands, kitty } = H.dealPack(run.rng, run.pack);
+		R.homing(run, hands, H.PLAYER, [kitty]);
 		const n = run.ext.handCount ?? 0;
 		run.ext.handCount = n + 1;
 		const passDir = H.PASS_ROTATION[n % H.PASS_ROTATION.length];

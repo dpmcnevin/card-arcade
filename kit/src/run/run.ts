@@ -444,16 +444,18 @@ export function shuffledPack(run: Run): Card[] {
 
 /** Homing seals: move each into the player's hand right after the deal,
  *  swapping it for their lowest card that isn't homing. Deterministic. */
-export function homing(run: Run, hands: Hands, player: number) {
+export function homing(run: Run, hands: Hands, player: number, piles: Card[][] = []) {
 	const home = (c: Card) => !!sealOf(run, c)?.homing;
 	const mine = hands[player];
-	for (let seat = 1; seat < hands.length; seat++) {
-		if (seat === player) continue;
-		for (const c of hands[seat].slice()) {
+	// From the other seats, and from any cards no one was dealt (the kitty, the
+	// dog, a short round's leftovers): a homing card always comes to you.
+	const sources = [...hands.filter((_, seat) => seat > 0 && seat !== player), ...piles];
+	for (const pile of sources) {
+		for (const c of pile.slice()) {
 			if (!home(c)) continue;
 			const give = mine.filter((m) => !home(m)).reduce<Card | undefined>((lo, m) => (!lo || m.rank < lo.rank || (m.rank === lo.rank && m.suit < lo.suit) ? m : lo), undefined);
 			if (!give) continue;
-			hands[seat].splice(hands[seat].indexOf(c), 1, give);
+			pile.splice(pile.indexOf(c), 1, give);
 			mine.splice(mine.indexOf(give), 1, c);
 		}
 	}
