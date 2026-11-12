@@ -1,6 +1,7 @@
 <!-- The front door: every game (the arcade), or one game on its own page. -->
 <script lang="ts">
 	import { base } from '$app/paths';
+	import { goto } from '$app/navigation';
 	let { only }: { only?: string } = $props();
 	import { arcade } from '../app.svelte.ts';
 	import { GAMES as ALL } from '../games/index.ts';
@@ -9,8 +10,10 @@
 	import * as sound from '../audio/sound.ts';
 	import * as cards from '$kit/src/core/rules/cards.ts';
 	// The fan's cards can be picked up and dropped anywhere; a tap flips one.
-	let moved = $state([0, 1, 2, 3].map(() => ({ x: 0, y: 0 })));
-	let up = $state([true, true, true, true]);
+	/** Cards in the fan, three a side. */
+	const N = 6;
+	let moved = $state(Array.from({ length: N }, () => ({ x: 0, y: 0 })));
+	let up = $state(Array.from({ length: N }, () => true));
 	let drag = $state<{ k: number; sx: number; sy: number; ox: number; oy: number; went: boolean } | null>(null);
 	const scale = () => {
 		const r = document.querySelector('.stage')?.getBoundingClientRect();
@@ -39,12 +42,15 @@
 	}
 	const scattered = $derived(moved.some((m) => m.x || m.y) || up.some((u) => !u));
 	function tidy() {
-		moved = [0, 1, 2, 3].map(() => ({ x: 0, y: 0 }));
-		up = [true, true, true, true];
+		moved = Array.from({ length: N }, () => ({ x: 0, y: 0 }));
+		up = Array.from({ length: N }, () => true);
 	}
 	// Four random cards around the title, some with an edition's shine.
 	const FAN = (() => {
-		const deck = cards.newDeck().sort(() => Math.random() - 0.5).slice(0, 4);
+		// A game's own page fans its own pack (Tarot trumps, Euchre's nine to ace).
+		const game = only ? ALL.find((g) => g.module.id === only) : null;
+		const pack = game?.module.newPack ? game.module.newPack() : cards.newDeck();
+		const deck = pack.sort(() => Math.random() - 0.5).slice(0, N);
 		return deck.map((card) => ({ card, edition: Math.random() < 0.35 ? (['etched', 'lacquered', 'prismatic'] as const)[Math.floor(Math.random() * 3)] : undefined }));
 	})();
 	import Button from './Button.svelte';
@@ -63,22 +69,32 @@
 	}
 </script>
 
-<svelte:window onpointermove={move} onpointerup={drop} />
+<svelte:window
+	onpointermove={move}
+	onpointerup={drop}
+	onkeydown={(e) => {
+		// Escape: close the collection, else from a game's page back to all games.
+		if (e.key !== 'Escape' || arcade.screen !== 'menu') return;
+		if (showing) showing = null;
+		else if (solo) goto(`${base}/`);
+	}}
+/>
 
 <div class="menu">
 	<div class="titlerow">
-		<div class="fan left">{#each FAN.slice(0, 2) as f, i}{@const k = i + 0}<!-- svelte-ignore a11y_no_static_element_interactions -->
-			<span class="fc" class:held={drag?.k === k} style:transform="translate({moved[k].x}px, {moved[k].y}px) rotate({drag?.k === k ? 0 : -14 + i * 10}deg)" onpointerdown={(e) => grab(e, k)}>
+		<div class="fan left">{#each FAN.slice(0, 3) as f, i}{@const k = i + 0}<!-- svelte-ignore a11y_no_static_element_interactions -->
+			<span class="fc" class:held={drag?.k === k} style:transform="translate({moved[k].x}px, {moved[k].y}px) rotate({drag?.k === k ? 0 : -22 + i * 9}deg)" onpointerdown={(e) => grab(e, k)}>
 				<span class="wob" style:animation-delay="{-k * 1.3}s">{#if up[k]}<Shine edition={f.edition}><img src={cardFace(f.card)} alt="" draggable="false" /></Shine>{:else}<img src={cardBack('standard')} alt="" draggable="false" />{/if}</span>
 			</span>{/each}</div>
 		<h1>{solo ? solo.module.title.toUpperCase() : 'CARD ARCADE'}</h1>
-		<div class="fan right">{#each FAN.slice(2) as f, i}{@const k = i + 2}<!-- svelte-ignore a11y_no_static_element_interactions -->
-			<span class="fc" class:held={drag?.k === k} style:transform="translate({moved[k].x}px, {moved[k].y}px) rotate({drag?.k === k ? 0 : 4 + i * 10}deg)" onpointerdown={(e) => grab(e, k)}>
+		<div class="fan right">{#each FAN.slice(3) as f, i}{@const k = i + 3}<!-- svelte-ignore a11y_no_static_element_interactions -->
+			<span class="fc" class:held={drag?.k === k} style:transform="translate({moved[k].x}px, {moved[k].y}px) rotate({drag?.k === k ? 0 : 4 + i * 9}deg)" onpointerdown={(e) => grab(e, k)}>
 				<span class="wob" style:animation-delay="{-k * 1.3}s">{#if up[k]}<Shine edition={f.edition}><img src={cardFace(f.card)} alt="" draggable="false" /></Shine>{:else}<img src={cardBack('standard')} alt="" draggable="false" />{/if}</span>
 			</span>{/each}</div>
 	</div>
 	{#if solo}
-		<div class="dim">{solo.module.tagline} · <a href="{base}/">more games</a></div>
+		<div class="back"><Button variant="plain" size="sm" onclick={() => goto(`${base}/`)} style="width: 140px">← All games</Button></div>
+		<div class="dim">{solo.module.tagline}</div>
 	{:else}
 		<div class="dim">one engine, a game per page</div>
 	{/if}
@@ -129,7 +145,7 @@
 	.titlerow {
 		display: flex;
 		align-items: center;
-		gap: 28px;
+		gap: 44px;
 	}
 	.fan {
 		display: flex;
@@ -138,15 +154,15 @@
 	.fc {
 		position: relative;
 		display: inline-flex;
-		margin: 0 -8px;
+		margin: 0 -22px;
 		cursor: grab;
 		touch-action: none;
 		transition: transform 0.12s;
 		filter: drop-shadow(0 4px 0 rgba(0, 0, 0, 0.35));
 	}
 	.fc img {
-		width: 56px;
-		height: 78px;
+		width: 80px;
+		height: 112px;
 		display: block;
 		image-rendering: auto;
 	}
@@ -183,6 +199,11 @@
 		position: absolute;
 		right: 24px;
 		bottom: 18px;
+	}
+	.back {
+		position: absolute;
+		left: 24px;
+		top: 20px;
 	}
 	.settings {
 		display: flex;
