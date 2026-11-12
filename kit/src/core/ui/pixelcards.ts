@@ -65,11 +65,13 @@ function bigSuit(b: Bitmap, suit: number, cx: number, cy: number, size: number, 
 		b.fillPoly([cx - s * 0.98, cy + s * 0.08, cx + s * 0.98, cy + s * 0.08, cx, cy - s], color);
 		b.fillPoly([cx, cy + s * 0.2, cx - s * 0.4, cy + s, cx + s * 0.4, cy + s], color);
 	} else {
-		const r = s * 0.44;
-		b.fillCircle(cx, cy - s * 0.48, r, color);
-		b.fillCircle(cx - s * 0.5, cy + s * 0.1, r, color);
-		b.fillCircle(cx + s * 0.5, cy + s * 0.1, r, color);
-		b.fillPoly([cx, cy - s * 0.1, cx - s * 0.35, cy + s, cx + s * 0.35, cy + s], color);
+		// Three round lobes, apart enough to read as a club, on a slim stem.
+		const r = s * 0.36;
+		b.fillCircle(cx, cy - s * 0.55, r, color);
+		b.fillCircle(cx - s * 0.58, cy + s * 0.08, r, color);
+		b.fillCircle(cx + s * 0.58, cy + s * 0.08, r, color);
+		b.fillRect(Math.round(cx - 1), Math.round(cy - s * 0.4), 2, Math.round(s * 1.0), color);
+		b.fillPoly([cx, cy + s * 0.35, cx - s * 0.38, cy + s, cx + s * 0.38, cy + s], color);
 	}
 }
 
@@ -116,9 +118,10 @@ function pips(b: Bitmap, card: Card, color: Color) {
 		// Columns sit 6px apart so the outer pips clear the corner indices.
 		const cx = 20 + p[0] * 6;
 		const cy = 28 + p[1] * 15;
-		b.sprite(S.SUIT7[card.suit], pal, Math.floor(cx + 0.5) - 3, Math.floor(cy + 0.5) - 3, {
-			flip: p[1] > 0.01
-		});
+		// Upright, even in the bottom half: flipped, a pip this small reads as
+		// some other shape.
+		const sp = S.SUIT7[card.suit];
+		b.sprite(sp, pal, Math.floor(cx + 0.5) - 3, Math.floor(cy + 0.5) - Math.floor(sp.length / 2));
 	}
 }
 
