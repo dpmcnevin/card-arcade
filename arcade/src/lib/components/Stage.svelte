@@ -64,8 +64,22 @@
 />
 
 <div class="wrap">
+	<!-- The felt fills the whole window, so a window that isn't the stage's
+	     shape shows more table instead of bars. -->
+	<div class="baize" style:width="{w / scale}px" style:height="{h / scale}px" style:transform="translate(-50%, -50%) scale({scale})">
+		<Felt x={0} w={Math.ceil(w / scale)} h={Math.ceil(h / scale)} />
+		<!-- The sidebar's panel runs on to the window's edge too. -->
+		{#if arcade.screen === 'run' && run && ui}
+			{@const ox = (w / scale - L.W) / 2}
+			{@const oy = (h / scale - L.H) / 2}
+			{#if L.portrait}
+				<div class="sidefill portrait" style:height="{oy + L.side.h}px"></div>
+			{:else}
+				<div class="sidefill" style:width="{ox + L.side.w}px"></div>
+			{/if}
+		{/if}
+	</div>
 	<div class="stage" class:smooth={!settings.pixel} class:portrait={L.portrait} style="{cssVars(L)}; width: {L.W}px; height: {L.H}px" style:transform="scale({scale}) translate({fx.shakeX}px, {fx.shakeY}px)">
-		{#key L.portrait}<Felt x={0} w={L.W} h={L.H} />{/key}
 		{#if arcade.screen === 'menu' || !run || !ui}
 			<Menu {only} />
 		{:else}
@@ -105,6 +119,27 @@
 		justify-content: center;
 		background: var(--bg);
 		overflow: hidden;
+	}
+	.baize {
+		position: absolute;
+		left: 50%;
+		top: 50%;
+		transform-origin: 50% 50%;
+	}
+	.sidefill {
+		position: absolute;
+		left: 0;
+		top: 0;
+		bottom: 0;
+		box-sizing: border-box;
+		background: var(--sidebar);
+		border-right: 3px solid var(--brass-dim);
+	}
+	.sidefill.portrait {
+		right: 0;
+		bottom: auto;
+		border-right: none;
+		border-bottom: 3px solid var(--brass-dim);
 	}
 	.stage {
 		position: relative;
