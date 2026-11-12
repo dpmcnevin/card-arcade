@@ -9,8 +9,9 @@ import { bridge } from '../games/bridge/module.ts';
 import { hearts } from '../games/hearts/module.ts';
 import { euchre } from '../games/euchre/module.ts';
 import { tarot } from '../games/tarot/module.ts';
+import { whist22 } from '../games/whist22/module.ts';
 
-for (const module of [bridge, hearts, euchre, tarot]) {
+for (const module of [bridge, hearts, euchre, tarot, whist22]) {
 	test(`${module.id}: stepwise AI matches the instant AI`, () => {
 		const a = R.newRun(module, 'STEP'),
 			b = R.newRun(module, 'STEP');

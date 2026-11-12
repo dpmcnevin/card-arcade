@@ -197,19 +197,19 @@
 	.dim {
 		color: var(--ink-dim);
 	}
-	/* Every game in one row: four fit at 1280 wide. */
+	/* Every game in one row: five fit at 1280 wide. */
 	.games {
 		margin-top: 22px;
 		display: flex;
 		flex-wrap: wrap;
 		justify-content: center;
-		gap: 18px;
-		max-width: 1240px;
+		gap: 12px;
+		max-width: 1250px;
 	}
 	.game {
-		width: 270px;
+		width: 236px;
 		box-sizing: border-box;
-		padding: 14px 16px;
+		padding: 12px 12px;
 		background: rgba(12, 22, 18, 0.9);
 		border: 2px solid var(--brass-dim);
 		display: flex;
@@ -235,7 +235,8 @@
 	h2 {
 		margin: 0;
 		color: var(--brass);
-		font-size: 30px;
+		font-size: 25px;
+		white-space: nowrap;
 	}
 	.tag {
 		color: var(--ink-dim);

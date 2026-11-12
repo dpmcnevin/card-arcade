@@ -78,6 +78,9 @@ export interface GameUI {
 	/** In the pre-play step, picking this many cards from your hand (a
 	 *  number, or decided by the hand: Tarot's dog is set aside only by a taker). */
 	pick?: number | ((run: Run) => number);
+	/** Playing this card asks a question first (Whist 22's Fool: 0 or 22):
+	 *  the answers, each with the action it plays. */
+	choices?(run: Run, card: Card): { label: string; action: unknown }[] | null;
 	/** Order within a suit for sorting your hand, if not the rank (Tarot's knight). */
 	rankOrder?(c: Card): number;
 }

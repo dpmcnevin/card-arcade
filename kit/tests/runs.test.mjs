@@ -8,8 +8,9 @@ import { bridge } from '../games/bridge/module.ts';
 import { hearts } from '../games/hearts/module.ts';
 import { euchre } from '../games/euchre/module.ts';
 import { tarot } from '../games/tarot/module.ts';
+import { whist22 } from '../games/whist22/module.ts';
 
-const GAMES = { bridge, hearts, euchre, tarot };
+const GAMES = { bridge, hearts, euchre, tarot, whist22 };
 
 for (const [name, module] of Object.entries(GAMES)) {
 	test(`${name}: bot runs finish, score, use the club, and replay exactly`, () => {

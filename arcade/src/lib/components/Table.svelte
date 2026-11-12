@@ -128,8 +128,25 @@
 		if (picking) {
 			arcade.togglePick(k);
 			sound.play('select', { jitter: 0.1, volume: 0.6 });
-		} else arcade.game({ t: 'play', card: cards.code(c) });
+		} else playCard(c);
 	}
+
+	/** Play a card from your hand, asking first if the game has a question. */
+	let asking = $state<{ k: string; list: { label: string; action: unknown }[] } | null>(null);
+	function playCard(c: Card) {
+		const list = arcade.ui?.choices?.(arcade.run!, c);
+		if (list?.length) asking = { k: key(c), list };
+		else arcade.game({ t: 'play', card: cards.code(c) });
+	}
+	function answer(action: unknown) {
+		asking = null;
+		arcade.game(action);
+	}
+	$effect(() => {
+		// A question about a card that's no longer playable goes away.
+		void arcade.v;
+		if (asking && !actionable(asking.k)) asking = null;
+	});
 	let lastHover: string | null = null;
 	$effect(() => {
 		if (hover && hover !== lastHover) sound.play('card_hover', { jitter: 0.15, volume: 0.6 });
@@ -164,7 +181,8 @@
 					const hovered = hover === k && !drag?.moved;
 					const at = f.at(i);
 					out.push({
-						k, card: c, up: true, order: n0 + i, mine: true,
+						// Face down in your own hand only in Whist 22's forehead round.
+						k, card: c, up: seat.faceUp, order: n0 + i, mine: true,
 						s: HAND_S * (dragging ? 1.14 : hovered ? 1.1 : 1),
 						z: dragging ? 200 : hovered ? 45 : 10 + i,
 						x: dragging ? drag!.x : at.x,
@@ -194,7 +212,7 @@
 				// A big hand (Tarot's eighteen) packs tighter to stay clear of the name.
 				const step = n > 1 ? Math.min(16, 230 / (n - 1)) : 0;
 				const y0 = CY - (step * (n - 1)) / 2;
-				seat.cards.forEach((c, i) => out.push({ k: key(c), card: c, up: false, x, y: y0 + i * step, s: 0.55, z: 5 + i, order: n0 + i }));
+				seat.cards.forEach((c, i) => out.push({ k: key(c), card: c, up: seat.faceUp, x, y: y0 + i * step, s: seat.faceUp ? 0.8 : 0.55, z: 5 + i, order: n0 + i }));
 			}
 			n0 += n;
 		}
@@ -233,7 +251,7 @@
 		const seat = view.seats.find((s) => s.pos === 'S')!;
 		const card = seat.cards.find((c) => key(c) === d.k)!;
 		// Dropped on the table: play it, if you may.
-		if (d.y < L.handY - 90 && view.legal.has(d.k) && seat.playable && !arcade.busy) return arcade.game({ t: 'play', card: cards.code(card) });
+		if (d.y < L.handY - 90 && view.legal.has(d.k) && seat.playable && !arcade.busy) return playCard(card);
 		// Otherwise, put it where it was dropped.
 		const rest = ordered(seat.cards).filter((c) => key(c) !== d.k);
 		rest.splice(fan(seat.cards.length).index(d.x), 0, card);
@@ -314,6 +332,16 @@
 			></button>
 		{/each}
 	{/if}
+	{#if asking}
+		{@const i = hand.findIndex((c) => key(c) === asking!.k)}
+		{#if i >= 0}
+			{@const f = fan(hand.length)}
+			<div class="ask" style:left="{f.at(i).x}px" style:top="{L.handY - f.h / 2 - 40}px">
+				{#each asking.list as o}<button onclick={() => answer(o.action)}>{o.label}</button>{/each}
+				<button class="no" onclick={() => (asking = null)}>Cancel</button>
+			</div>
+		{/if}
+	{/if}
 	{#if under}
 		{@const i = hand.findIndex((c) => key(c) === under)}
 		{@const c = hand[i]}
@@ -353,6 +381,32 @@
 		display: flex;
 		gap: 6px;
 		z-index: 70;
+	}
+	/* A question before a card is played (the Fool: 0 or 22). */
+	.ask {
+		position: absolute;
+		transform: translate(-50%, -100%);
+		display: flex;
+		gap: 6px;
+		padding: 8px;
+		background: var(--panel);
+		border: 2px solid var(--brass);
+		box-shadow: 0 4px 0 rgba(0, 0, 0, 0.4);
+		z-index: 130;
+	}
+	.ask button {
+		font: inherit;
+		font-size: 15px;
+		padding: 5px 12px;
+		border: none;
+		background: var(--brass);
+		color: var(--bg);
+		cursor: pointer;
+		white-space: nowrap;
+	}
+	.ask button.no {
+		background: var(--panel-edge);
+		color: var(--ink);
 	}
 	/* What an enhanced card does, over it while you point at it. */
 	.inspect {

@@ -164,7 +164,8 @@
 		position: absolute;
 		left: var(--tx);
 		width: var(--tw);
-		top: calc(var(--ty) + 120px);
+		/* Below North's cards (Whist 22's forehead round needs them seen). */
+		top: calc(var(--ty) + 150px);
 		display: flex;
 		justify-content: center;
 		pointer-events: none;
