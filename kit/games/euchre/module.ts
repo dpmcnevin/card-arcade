@@ -11,6 +11,7 @@ import * as R from '../../src/run/run.ts';
 import type { Card } from '../../src/core/rules/cards.ts';
 import type { EuchreHand } from './rules.ts';
 import type { GameModule, Line, RelicDef, Run, UpgradeDef } from '../../src/run/run.ts';
+import { settled, fateOfMine } from '../../src/run/settle.ts';
 
 export type EuchreAction = { t: 'call'; suit: number; alone?: boolean } | { t: 'pass' } | { t: 'play'; card: string } | { t: 'playOut' };
 
@@ -176,6 +177,18 @@ export const euchre: GameModule<EuchreHand, EuchreAction, EuchreCtx> = {
 	},
 	handOver: (run) => run.hand.complete,
 	untouched: (run) => run.hand.tricks.length === 0,
+	settled(run) {
+		const h = run.hand as EuchreHand;
+		if (h.trump === null || h.complete || h.tricks.length === 0) return false;
+		return settled(h, {
+			clone: (s) => ({ ...s, hands: s.hands.map((x) => x.slice()), trick: s.trick.slice(), tricks: s.tricks.slice() }),
+			over: (s) => s.complete,
+			turn: (s) => s.turn,
+			legal: (s, seat) => E.legalPlays(s, seat),
+			play: (s, seat, c) => void E.play(s, seat, c),
+			outcome: (s) => `${E.tricksFor(s, E.PLAYER)}|${fateOfMine(s.tricks, (x) => x === E.PLAYER, (x) => cards.sameSide(x, E.PLAYER))}`
+		});
+	},
 	aiToMove: (run) => run.hand.trump !== null && !run.hand.complete && run.hand.turn !== E.PLAYER,
 	stepAI: (run) => (E.play(run.hand, run.hand.turn, ai.chooseCard(run.hand, run.hand.turn)) ? 'trick' : 'card'),
 	score(run) {

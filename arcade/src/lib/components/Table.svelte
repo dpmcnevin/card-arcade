@@ -13,6 +13,8 @@
 	import Button from './Button.svelte';
 	import { HAND_S } from '../layout.ts';
 	import * as sound from '../audio/sound.ts';
+	import { CARD_EDITIONS } from '$kit/src/run/content.ts';
+	import { editionColor } from './editions.ts';
 
 	const CW = 80,
 		CH = 112;
@@ -52,6 +54,8 @@
 	}
 
 	const TRICK: Record<Pos, [number, number]> = { N: [0, -96], S: [0, 96], W: [-130, 0], E: [130, 0] };
+	/** A played card lands a little askew, the same way each time. */
+	const tilt = (c: Card) => ((((c.suit * 13 + c.rank) * 37) % 11) - 5) * 0.013;
 
 	// ---- your hand: order and dragging
 	let drag = $state<{ k: string; x: number; y: number; moved: boolean; sx: number; sy: number } | null>(null);
@@ -84,7 +88,7 @@
 			w, h, gap, x0,
 			at: (i: number) => {
 				const k = i + 1 - (n + 1) / 2;
-				return { x: x0 + i * gap, y: L.handY + k * k * 0.5, r: k * 0.028 };
+				return { x: x0 + i * gap, y: L.handY + k * k * 0.45, r: k * 0.02 };
 			},
 			/** The place a card dropped at x would take. */
 			index: (x: number) => Math.max(0, Math.min(n - 1, Math.round((x - x0) / Math.max(1, gap))))
@@ -108,6 +112,8 @@
 
 	// ---- the card under the pointer, and what a card in your hand does
 	let hover = $state<string | null>(null);
+	/** The hand card under the pointer, playable or not: its mods show above it. */
+	let under = $state<string | null>(null);
 	const picking = $derived(pre && !!arcade.ui!.pick);
 	const south = $derived(view.seats.find((s) => s.pos === 'S'));
 	function actionable(k: string): boolean {
@@ -164,8 +170,7 @@
 						r: dragging || hovered || picked ? 0 : at.r,
 						lift: picked ? 30 : hovered ? 22 : yourTurn && legal ? 8 : 0,
 						hovered,
-						idle: dragging ? null : (i + 1) * 0.7,
-						ring: picked ? 'var(--ploy)' : view.ringed?.has(k) ? 'var(--brass)' : hovered ? 'var(--brass)' : dragging && legal && drag!.y < L.handY - 90 ? 'var(--good)' : undefined,
+						ring: picked ? 'var(--ploy)' : view.ringed?.has(k) ? 'var(--brass)' : dragging && legal && drag!.y < L.handY - 90 ? 'var(--good)' : undefined,
 						dim: yourTurn && !legal
 					});
 				});
@@ -200,6 +205,7 @@
 				k: key(t.card), card: t.card, up: !view.hidden?.has(key(t.card)), order: 0,
 				x: going ? SEAT[winner][0] : CX + dx,
 				y: going ? SEAT[winner][1] : CY + dy,
+				r: going ? 0 : tilt(t.card),
 				s: going ? 0.6 : 1.15,
 				z: 50 + i,
 				ring: winner === t.pos && !going ? 'var(--brass)' : undefined
@@ -238,7 +244,7 @@
 <div class="table">
 	{#each view.seats as seat (seat.pos)}
 		<div class="label" class:active={seat.active} style:left="{LABEL[seat.pos][0]}px" style:top="{LABEL[seat.pos][1]}px">
-			{#if seat.dealer}<span class="dealer" title="Dealer">D</span>{/if}{seat.name}{#if seat.tally}<span class="tally">{seat.tally}</span>{/if}
+			{#if seat.dealer}<span class="dealer" title="Dealer">D</span>{/if}{seat.name}{#if seat.active && seat.pos !== 'S' && arcade.busy}<span class="think"><i></i><i></i><i></i></span>{/if}{#if seat.tally}{#key seat.tally}<span class="tally">{seat.tally}</span>{/key}{/if}
 		</div>
 	{/each}
 	{#if view.banner}<div class="banner" style:left="{CX}px" style:top="{L.bannerY}px">{view.banner}</div>{/if}
@@ -285,8 +291,16 @@
 				style:top="{L.handY - f.h / 2 - 30}px"
 				style:width="{i === hand.length - 1 ? f.w : f.gap}px"
 				style:height="{f.h + 30}px"
-				onpointerenter={(e) => e.pointerType === 'mouse' && actionable(k) && (hover = k)}
-				onpointerleave={(e) => e.pointerType === 'mouse' && hover === k && (hover = null)}
+				onpointerenter={(e) => {
+					if (e.pointerType !== 'mouse') return;
+					under = k;
+					if (actionable(k)) hover = k;
+				}}
+				onpointerleave={(e) => {
+					if (e.pointerType !== 'mouse') return;
+					if (under === k) under = null;
+					if (hover === k) hover = null;
+				}}
 				onpointerdown={(e) => {
 					if (arcade.busy) return;
 					const [x, y] = toStage(e);
@@ -295,6 +309,20 @@
 				onclick={() => activate(c)}
 			></button>
 		{/each}
+	{/if}
+	{#if under}
+		{@const i = hand.findIndex((c) => key(c) === under)}
+		{@const c = hand[i]}
+		{@const m = c ? R.mod(run, c) : {}}
+		{@const ed = m.edition ? CARD_EDITIONS[m.edition as keyof typeof CARD_EDITIONS] : undefined}
+		{@const seal = c ? R.sealOf(run, c) : undefined}
+		{#if c && (ed || seal) && !drag?.moved}
+			{@const f = fan(hand.length)}
+			<div class="inspect" style:left="{f.at(i).x}px" style:top="{L.handY - f.h / 2 - 36}px">
+				{#if ed}<div><b style:color={editionColor(ed.key)}>{ed.name}</b> {ed.text}</div>{/if}
+				{#if seal}<div><b style:color={seal.color}>{seal.name}</b> {seal.text}</div>{/if}
+			</div>
+		{/if}
 	{/if}
 	<div class="peek" style:right="{L.W - L.peekAt[0]}px" style:top="{L.peekAt[1]}px">
 		<Button variant="plain" size="sm" enabled={!!view.lastTrick} title="The last trick, card by card" onclick={() => (arcade.overlay = 'last')}>Last trick</Button>
@@ -321,6 +349,62 @@
 		display: flex;
 		gap: 6px;
 		z-index: 70;
+	}
+	/* What an enhanced card does, over it while you point at it. */
+	.inspect {
+		position: absolute;
+		transform: translate(-50%, -100%);
+		max-width: 300px;
+		width: max-content;
+		padding: 6px 10px;
+		background: var(--panel);
+		border: 2px solid var(--panel-edge);
+		box-shadow: 0 4px 0 rgba(0, 0, 0, 0.4);
+		font-size: 13px;
+		color: var(--ink-dim);
+		z-index: 120;
+		pointer-events: none;
+	}
+	.inspect b {
+		font-weight: 700;
+	}
+	@keyframes pop {
+		0% {
+			transform: scale(1.5);
+			background: var(--brass);
+			color: var(--bg);
+		}
+		100% {
+			transform: scale(1);
+		}
+	}
+	/* Someone else is thinking. */
+	.think {
+		display: inline-flex;
+		gap: 3px;
+		margin-left: 6px;
+		vertical-align: middle;
+	}
+	.think i {
+		width: 4px;
+		height: 4px;
+		background: var(--brass);
+		animation: think 0.9s steps(2, jump-none) infinite;
+	}
+	.think i:nth-child(2) {
+		animation-delay: 0.15s;
+	}
+	.think i:nth-child(3) {
+		animation-delay: 0.3s;
+	}
+	@keyframes think {
+		0%,
+		100% {
+			opacity: 0.25;
+		}
+		50% {
+			opacity: 1;
+		}
 	}
 	.slot {
 		position: absolute;
@@ -376,7 +460,10 @@
 		font-weight: 700;
 		vertical-align: middle;
 	}
+	/* A tally that just changed pops. */
 	.tally {
+		display: inline-block;
+		animation: pop 0.32s ease-out;
 		margin-left: 8px;
 		padding: 0 6px;
 		background: var(--panel);

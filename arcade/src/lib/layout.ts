@@ -51,12 +51,12 @@ export const LANDSCAPE: Layout = (() => {
 		cy = 300;
 	return {
 		portrait: false, W, H, side, table, cx, cy,
-		handY: H - HAND_H / 2 - 20, handW: 880,
+		handY: H - HAND_H / 2 - 34, handW: 880,
 		northY: 72, westX: table.x + 60, eastX: table.x + table.w - 60,
 		deck: { x: table.x + table.w - 70, y: 640 },
-		label: { N: [cx, 16], S: [cx, 484], W: [table.x + 60, cy - 150], E: [table.x + table.w - 60, cy - 150] },
-		sortAt: [table.x + 24, 446], peekAt: [table.x + table.w - 24, 470], outAt: [table.x + table.w - 24, 420],
-		bannerY: 450
+		label: { N: [cx, 16], S: [cx, 452], W: [table.x + 60, cy - 150], E: [table.x + table.w - 60, cy - 150] },
+		sortAt: [table.x + 24, 432], peekAt: [table.x + table.w - 24, 470], outAt: [table.x + table.w - 24, 420],
+		bannerY: 424
 	};
 })();
 
@@ -69,11 +69,11 @@ export const PORTRAIT: Layout = (() => {
 		cy = table.y + 380;
 	return {
 		portrait: true, W, H, side, table, cx, cy,
-		handY: H - HAND_H / 2 - 40, handW: 760,
+		handY: H - HAND_H / 2 - 54, handW: 760,
 		northY: table.y + 70, westX: 46, eastX: W - 46,
 		deck: { x: W - 70, y: H - 330 },
-		label: { N: [cx, table.y + 14], S: [cx, H - HAND_H - 90], W: [50, cy - 190], E: [W - 50, cy - 190] },
-		sortAt: [24, H - HAND_H - 130], peekAt: [W - 24, H - HAND_H - 140], outAt: [W - 24, H - HAND_H - 186],
+		label: { N: [cx, table.y + 14], S: [cx, H - HAND_H - 104], W: [50, cy - 190], E: [W - 50, cy - 190] },
+		sortAt: [24, H - HAND_H - 144], peekAt: [W - 24, H - HAND_H - 154], outAt: [W - 24, H - HAND_H - 200],
 		bannerY: cy + 180
 	};
 })();

@@ -15,6 +15,7 @@ import * as R from '../../src/run/run.ts';
 import type { Card, Hands } from '../../src/core/rules/cards.ts';
 import type { HandState, PassDir } from './rules/hearts.ts';
 import type { GameModule, RelicDef, Run, UpgradeDef, Line } from '../../src/run/run.ts';
+import { settled, fateOfMine } from '../../src/run/settle.ts';
 
 export interface HeartsHand {
 	dealt: Hands;
@@ -260,6 +261,32 @@ export const hearts: GameModule<HeartsHand, HeartsAction, relicsLib.ScoreCtx> = 
 	},
 	handOver: (run) => !!run.hand.state?.complete,
 	untouched: (run) => !run.hand.state || run.hand.state.tricks.length === 0,
+	settled(run) {
+		const h = run.hand as HeartsHand;
+		const st = h.state;
+		if (!st || st.complete || st.tricks.length === 0) return false;
+		const me = (s: number) => s === H.PLAYER;
+		return settled(st, {
+			clone: (s) => ({ ...s, hands: s.hands.map((x) => x.slice()), trick: s.trick.slice(), tricks: s.tricks.slice(), taken: s.taken.map((x) => x.slice()), voids: s.voids.map((v) => ({ ...v })), played: s.played.slice() }),
+			over: (s) => s.complete,
+			turn: (s) => s.turn,
+			legal: (s, seat) => H.legalPlays(s, seat),
+			play: (s, seat, c) => void H.play(s, seat, c),
+			// Points per seat; your tricks (who led, what they held) in any
+			// order; what became of each of your cards; the Fall Guy's trick.
+			outcome: (s) =>
+				[
+					H.pointsTaken(s).join(' '),
+					s.tricks
+						.filter((t) => t.winner === H.PLAYER || t.leader === H.PLAYER)
+						.map((t) => `${t.winner === H.PLAYER ? 'w' : '-'}${t.leader === H.PLAYER ? 'l' : '-'}${t.points}`)
+						.sort()
+						.join(','),
+					fateOfMine(s.tricks, me, me),
+					h.fallGuyFrom === undefined ? '' : String(s.tricks.slice(h.fallGuyFrom).findIndex((t) => t.winner === H.PLAYER))
+				].join('|')
+		});
+	},
 	aiToMove: (run) => !!run.hand.state && !run.hand.state.complete && run.hand.state.turn !== H.PLAYER,
 	stepAI(run) {
 		const st = run.hand.state!;

@@ -43,10 +43,16 @@
 		sound.unlock();
 		if ((e.target as HTMLElement)?.tagName === 'INPUT') return;
 		const k = e.key.toLowerCase();
+		// The board overview that opens each board: Escape, Space or Enter start it.
+		const overview = fresh && arcade.seen !== boardKey && arcade.overlay !== 'table';
 		if (k === ' ' || k === 'enter') {
 			e.preventDefault();
-			arcade.advance();
-		} else if (k === 'escape') arcade.escape();
+			if (overview) arcade.seen = boardKey;
+			else arcade.advance();
+		} else if (k === 'escape') {
+			if (overview) arcade.seen = boardKey;
+			else arcade.escape();
+		}
 		else if (k === 'm') sound.toggleMusic();
 	}
 </script>
@@ -91,7 +97,10 @@
 				{#if phase === R.PHASE.PRE}
 					<div class="pre"><ui.Pre {run} picked={arcade.picked} act={(a) => arcade.game(a)} v={arcade.v} /></div>
 				{:else if phase === R.PHASE.PLAY && !arcade.busy && (void arcade.v, ui.view(run).legal.size)}
-					<div class="out" style:top="{L.outAt[1]}px"><button onclick={() => arcade.game({ t: 'playOut' })}>Play it out</button></div>
+					{@const claim = (void arcade.v, !!run.module.settled?.(run))}
+					<div class="out" class:claim style:top="{L.outAt[1]}px">
+						<button title={claim ? 'Every way to play the rest ends the same: take it now' : 'Let the table play the rest of the hand for you'} onclick={() => arcade.game({ t: 'playOut' })}>{claim ? 'Claim the rest' : 'Play it out'}</button>
+					</div>
 				{/if}
 				<Panels />
 				{#if fresh && arcade.seen !== boardKey && arcade.overlay !== 'table'}
@@ -141,12 +150,12 @@
 		border-right: none;
 		border-bottom: 3px solid var(--brass-dim);
 	}
+	/* Not clipped: the felt runs past it, and so do dimmed overlays. */
 	.stage {
 		position: relative;
 		width: 1280px;
 		height: 720px;
 		flex: none;
-		overflow: hidden;
 	}
 	.stage.smooth {
 		--card-render: auto;
@@ -177,7 +186,20 @@
 		background: var(--panel-edge);
 		color: var(--ink);
 		border: none;
+		box-shadow: 0 4px 0 rgba(0, 0, 0, 0.35);
 		cursor: pointer;
+	}
+	/* The rest can't change: claiming is the obvious move. */
+	.out.claim button {
+		background: var(--brass);
+		color: var(--bg);
+		font-weight: 700;
+		animation: claim 1.6s ease-in-out infinite;
+	}
+	@keyframes claim {
+		50% {
+			box-shadow: 0 4px 0 rgba(0, 0, 0, 0.35), 0 0 0 4px rgba(217, 164, 65, 0.35);
+		}
 	}
 	.toast {
 		position: absolute;

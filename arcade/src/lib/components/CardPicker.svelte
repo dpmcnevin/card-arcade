@@ -48,6 +48,8 @@
 		position: absolute;
 		inset: 0;
 		background: rgba(0, 0, 0, 0.55);
+		/* Past the stage too, on a window of another shape. */
+		box-shadow: 0 0 0 200vmax rgba(0, 0, 0, 0.55);
 		display: flex;
 		align-items: center;
 		justify-content: center;

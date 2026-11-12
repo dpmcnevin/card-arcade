@@ -15,6 +15,7 @@ import * as R from '../../src/run/run.ts';
 import type { Card, Contract, Hands } from '../../src/core/rules/cards.ts';
 import type { PlayState, PlaySummary, Trick } from './rules/play.ts';
 import type { GameModule, RelicDef, Run, UpgradeDef, BaseScore } from '../../src/run/run.ts';
+import { settled, fateOfMine } from '../../src/run/settle.ts';
 
 export interface Deal {
 	hands: Hands;
@@ -234,6 +235,20 @@ export const bridge: GameModule<Deal, BridgeAction, relicsLib.ScoreCtx> = {
 	},
 	handOver: (run) => !!run.hand.state?.complete,
 	aiToMove: (run) => !!run.hand.state && !run.hand.state.complete && !isPlayerTurn(run),
+	settled(run) {
+		const d = run.hand as Deal;
+		const st = d.state;
+		if (!st || st.complete || st.tricks.length === 0) return false;
+		const ours = (x: number) => cards.sameSide(x, d.declarer);
+		return settled(st, {
+			clone: (s) => ({ ...s, hands: s.hands.map((x) => x.slice()), trick: s.trick.slice(), tricks: s.tricks.slice(), voids: s.voids.map((v) => ({ ...v })), played: s.played.slice() }),
+			over: (s) => s.complete,
+			turn: (s) => s.turn,
+			legal: (s, seat) => play.legalPlays(s, seat),
+			play: (s, seat, c) => void play.play(s, seat, c),
+			outcome: (s) => `${JSON.stringify(play.summarise(s, d.declarer))}|${fateOfMine(s.tricks, ours, ours)}`
+		});
+	},
 	stepAI(run) {
 		const d = run.hand;
 		const st = d.state!;

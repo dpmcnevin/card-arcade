@@ -197,6 +197,9 @@ export interface GameModule<H = any, A = any, S = any> {
 	/** Nothing has happened this hand yet: no trick finished (a board can
 	 *  still be skipped). Default: only in the pre-play step. */
 	untouched?(run: Run<H>): boolean;
+	/** Nothing left in this hand can change its score (every way to play the
+	 *  rest ends the same): the player may claim it. See settle.ts. */
+	settled?(run: Run<H>): boolean;
 	/** The game's part of the score. */
 	score(run: Run<H>): BaseScore<S>;
 	relics: RelicDef<S>[];
