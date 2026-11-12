@@ -52,6 +52,8 @@ export interface WhistHand {
 	complete: boolean;
 	/** The one-card round: you can't see your own card. */
 	blind: boolean;
+	/** A seat the dealer rule doesn't bind this round (the Loophole ploy). */
+	loophole?: number;
 }
 
 export function deal(rng: RNG, dealer: number, size: number, pack: Card[] = newDeck()): WhistHand {
@@ -68,7 +70,7 @@ export const bidTotal = (h: WhistHand) => h.bids.reduce<number>((n, b) => n + (b
 
 /** The bid the dealer may not make (it would make the bids add up), if any. */
 export function forbidden(h: WhistHand, seat: number): number | null {
-	if (seat !== h.dealer) return null;
+	if (seat !== h.dealer || h.loophole === seat) return null;
 	const f = h.size - bidTotal(h);
 	return f >= 0 && f <= h.size ? f : null;
 }

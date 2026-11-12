@@ -192,3 +192,35 @@ test('the club never offers the same thing twice', () => {
 		}
 	}
 });
+
+test('whist22: the Loophole ploy lets the dealer make the bids add up', async () => {
+	const { whist22 } = await import('../games/whist22/module.ts');
+	const W = await import('../games/whist22/rules.ts');
+	const { apply } = await import('../src/run/save.ts');
+	// Find a run where you deal and bid last with a bid barred to you.
+	for (let i = 0; i < 50; i++) {
+		const run = R.newRun(whist22, `LOOP${i}`);
+		const rng = newRng(`loop${i}`);
+		// Play rounds with the bot until it's your deal and your bid.
+		for (let k = 0; k < 40 && !(run.phase === R.PHASE.PRE && run.hand.dealer === W.PLAYER); k++) {
+			if (run.phase === R.PHASE.PRE || run.phase === R.PHASE.PLAY) apply(run, { t: 'game', a: whist22.bot(run, rng) });
+			else if (run.phase === R.PHASE.SCORED) apply(run, { t: 'next' });
+			else if (run.phase === R.PHASE.WON) apply(run, { t: 'shop' });
+			else if (run.phase === R.PHASE.SHOP) apply(run, { t: 'leave' });
+			else break;
+		}
+		const h = run.hand;
+		if (run.phase !== R.PHASE.PRE || h.dealer !== W.PLAYER) continue;
+		const barred = W.forbidden(h, W.PLAYER);
+		if (barred === null) continue;
+		assert.throws(() => R.act(run, { t: 'bid', bid: barred }));
+		run.ploys = ['loophole'];
+		assert.deepEqual(R.canUsePloy(run, 0), [true]);
+		R.usePloy(run, 0);
+		assert.equal(W.forbidden(h, W.PLAYER), null);
+		R.act(run, { t: 'bid', bid: barred });
+		assert.equal(W.bidTotal(h), h.size, 'the bids add up');
+		return;
+	}
+	assert.fail('no deal found where you deal with a barred bid');
+});

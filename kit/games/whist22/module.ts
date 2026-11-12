@@ -192,6 +192,20 @@ export const whist22: GameModule<WhistHand, WhistAction, WhistCtx> = {
 	newPack: W.newDeck,
 	relics: RELICS,
 	upgrades: UPGRADES,
+	ploys: [
+		{
+			key: 'loophole', name: 'Loophole', text: 'When you deal, your bid may make the bids add up this round', cost: 3, icon: 'lead_out_of_turn',
+			when: [R.PHASE.PRE],
+			canUse: (run) => {
+				const h = run.hand as WhistHand;
+				if (h.stage !== 'bid' || h.turn !== W.PLAYER) return [false, 'only when it’s your bid'];
+				if (h.dealer !== W.PLAYER) return [false, 'only when you deal'];
+				if (h.loophole === W.PLAYER) return [false, 'already open'];
+				return [true];
+			},
+			use: (run) => void ((run.hand as WhistHand).loophole = W.PLAYER)
+		}
+	],
 	bosses: [
 		{ key: 'cold_deck', name: 'The Cold Deck', text: 'x0.75 mult on every round', tier: 1, score: () => ({ label: 'The Cold Deck', xmult: 0.75 }) },
 		{ key: 'miser', name: 'The Miser', text: 'Zero bids score half', tier: 1, score: (c) => (c.bid === 0 ? { label: 'The Miser', xmult: 0.5 } : null) },
