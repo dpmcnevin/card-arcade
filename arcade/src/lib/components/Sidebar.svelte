@@ -164,7 +164,9 @@
 		display: flex;
 		flex-direction: column;
 		gap: 7px;
-		z-index: 100;
+		/* Above the club (110), so a ploy or relic popup isn't hidden behind
+		   it; below full-screen overlays (150). */
+		z-index: 120;
 	}
 	/* Portrait: the sidebar runs along the top, in columns. */
 	:global(.stage.portrait) aside {
