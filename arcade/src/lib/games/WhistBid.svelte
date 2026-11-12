@@ -16,8 +16,21 @@
 {#key v}
 	<div class="panel">
 		<div class="title">{h.blind ? 'Will your card win?' : `How many tricks will you take?`}</div>
-		<div class="dim">
-			{seatName(h.dealer)} dealt{#each [1, 2, 3, 4].map((i) => ((h.dealer + i - 1) % 4) + 1) as s}{#if h.bids[s] !== null}<br />{seatName(s)}: {h.bids[s]}{/if}{/each}
+		<!-- Each bid as dots, one per card in the round: filled for tricks bid. -->
+		<div class="bids">
+			{#each [1, 2, 3, 4].map((i) => ((h.dealer + i - 1) % 4) + 1) as s}
+				{@const b = h.bids[s]}
+				<div class="who" class:me={s === W.PLAYER}>{seatName(s)}{s === h.dealer ? ' (dealer)' : ''}</div>
+				<div class="dots">
+					{#if b === null}<span class="wait">{s === W.PLAYER ? 'your bid' : 'to bid'}</span>
+					{:else}{#each Array(h.size) as _, i}<i class:on={i < b}></i>{/each}{#if b === 0}<span class="zero">none</span>{/if}{/if}
+				</div>
+			{/each}
+			<div class="who total">Bid so far</div>
+			<div class="dots">
+				{#each Array(Math.max(h.size, W.bidTotal(h))) as _, i}<i class:on={i < W.bidTotal(h)} class:over={i >= h.size}></i>{/each}
+				<span class="zero">{W.bidTotal(h)} of {h.size}</span>
+			</div>
 		</div>
 		<div class="row">
 			{#each Array(h.size + 1) as _, b}
@@ -26,7 +39,7 @@
 			{/each}
 		</div>
 		<div class="hint">
-			{#if h.blind}You can see everyone’s card but yours: bid 1 if yours beats theirs.{:else}Bids so far add up to {W.bidTotal(h)} of {h.size}{W.forbidden(h, W.PLAYER) !== null ? ` · you deal, so not ${W.forbidden(h, W.PLAYER)}` : ''}{/if}
+			{#if h.blind}You can see everyone’s card but yours: bid 1 if yours beats theirs.{:else if W.forbidden(h, W.PLAYER) !== null}You deal, so not {W.forbidden(h, W.PLAYER)}: the bids can’t add up to {h.size}{/if}
 		</div>
 	</div>
 {/key}
@@ -45,14 +58,55 @@
 		font-size: 22px;
 		color: var(--ink);
 	}
-	.dim {
-		color: var(--ink-dim);
-		font-size: 14px;
-	}
 	.row {
 		display: flex;
 		flex-wrap: wrap;
 		gap: 8px;
+	}
+	.bids {
+		display: grid;
+		grid-template-columns: auto 1fr;
+		gap: 6px 14px;
+		align-items: center;
+		font-size: 14px;
+	}
+	.who {
+		color: var(--ink-dim);
+	}
+	.who.me {
+		color: var(--brass);
+	}
+	.who.total {
+		color: var(--ink-faint);
+		padding-top: 4px;
+		border-top: 2px solid var(--panel-edge);
+	}
+	.dots {
+		display: flex;
+		align-items: center;
+		gap: 4px;
+		min-height: 14px;
+	}
+	.who.total + .dots {
+		padding-top: 4px;
+		border-top: 2px solid var(--panel-edge);
+	}
+	.dots i {
+		width: 12px;
+		height: 12px;
+		background: var(--panel-edge);
+	}
+	.dots i.on {
+		background: var(--brass);
+	}
+	.dots i.over {
+		background: var(--bad);
+	}
+	.wait,
+	.zero {
+		margin-left: 6px;
+		color: var(--ink-faint);
+		font-size: 13px;
 	}
 	.hint {
 		font-size: 13px;
