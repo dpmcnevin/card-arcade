@@ -393,7 +393,17 @@ export const GENERIC_PLOYS: PloyDef[] = [
 
 /** Starting decks every game gets (a game adds its own). */
 export const GENERIC_DECKS: DeckDef[] = [
-	{ key: 'standard', name: 'Standard Deck', text: 'The usual start', back: 'standard' },
+	{
+		key: 'standard', name: 'Standard Deck', text: 'A few cards start enhanced', back: 'standard',
+		// About one card in twelve: mostly Etched, some Lacquered, a rare Prismatic.
+		apply: (run) => {
+			const n = Math.max(2, Math.round(run.pack.length / 12));
+			for (const c of run.rng.shuffle(run.pack.slice()).slice(0, n)) {
+				const r = run.rng.next();
+				setMod(run, c, { edition: r < 0.6 ? 'etched' : r < 0.9 ? 'lacquered' : 'prismatic' });
+			}
+		}
+	},
 	{ key: 'gilded', name: 'Gilded Deck', text: 'Start with $10', back: 'gilded', apply: (run) => (run.money = 10) },
 	{
 		key: 'royal', name: 'Royal Deck', text: 'Your four aces start Etched', back: 'royal',

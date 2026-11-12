@@ -74,6 +74,8 @@ export interface GameUI {
 	handInfo?(run: Run): { title: string; rows: { label: string; value: string; hot?: boolean }[] } | null;
 	/** One line under a hand's score title (who took what). */
 	scoreLine?(run: Run): string;
+	/** The same, as colored chips (Whist 22: each seat's bid, made or missed). */
+	scoreChips?(run: Run): { text: string; tone?: 'good' | 'bad'; me?: boolean }[];
 	/** How to play this game: titled sections for the help screen. */
 	help: { title: string; text: string }[];
 	/** In the pre-play step, picking this many cards from your hand (a

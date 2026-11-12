@@ -74,7 +74,9 @@
 <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
 <div class="panel" class:bad={!b.made} onclick={() => !done && land()}>
 	<h2>{b.title}</h2>
-	{#if arcade.ui?.scoreLine}<div class="sum">{arcade.ui.scoreLine(run)}</div>{/if}
+	{#if arcade.ui?.scoreChips}
+		<div class="chips">{#each arcade.ui.scoreChips(run) as c}<span class="chip {c.tone ?? ''}" class:me={c.me}>{c.text}</span>{/each}</div>
+	{:else if arcade.ui?.scoreLine}<div class="sum">{arcade.ui.scoreLine(run)}</div>{/if}
 	<div class="lines">
 		{#each b.lines.slice(0, shown) as l}
 			<div class="line" in:fly={{ x: -24, duration: 200, easing: cubicOut }}>
@@ -138,6 +140,30 @@
 		margin-top: -6px;
 		color: var(--ink-dim);
 		font-size: 15px;
+	}
+	.chips {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 8px;
+		margin-top: -4px;
+	}
+	.chip {
+		padding: 3px 10px;
+		font-size: 15px;
+		background: var(--panel-edge);
+		color: var(--ink);
+	}
+	.chip.good {
+		background: color-mix(in srgb, var(--good) 30%, var(--panel));
+		color: var(--good);
+	}
+	.chip.bad {
+		background: color-mix(in srgb, var(--bad) 28%, var(--panel));
+		color: var(--bad);
+	}
+	.chip.me {
+		outline: 2px solid var(--brass);
+		font-weight: 700;
 	}
 	.lines {
 		min-height: 120px;

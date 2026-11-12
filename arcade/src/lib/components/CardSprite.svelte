@@ -13,6 +13,7 @@
 	import { cardBack, cardFace, artPixels, snap, crisp } from '../ui/images.ts';
 	import * as sound from '../audio/sound.ts';
 	import SealBadge from './SealBadge.svelte';
+	import Shine from './Shine.svelte';
 	import { editionColor } from './editions.ts';
 	
 	export interface Spawn {
@@ -162,7 +163,7 @@
 >
 	{#snippet frontFace()}
 		<div class="face front" class:ed={!!edition} style:--glow={edition ? editionColor(edition) : 'transparent'}>
-			<img src={front} alt="" draggable="false" />
+			<Shine {edition}><img src={front} alt="" draggable="false" /></Shine>
 			{#if seal}<span class="seal"><SealBadge {seal} size={Math.round(22 * pos.current.s)} /></span>{/if}
 			{#if dim}<div class="dim"></div>{/if}
 			{#if highlight}<div class="ring" style:border-color={highlight}></div>{/if}
@@ -256,10 +257,20 @@
 	.aa .face img {
 		image-rendering: auto;
 	}
-	.face.ed {
-		box-shadow:
-			0 0 0 3px var(--glow),
-			0 var(--shadow, 4px) 0 3px rgba(0, 0, 0, var(--shadow-a, 0.35));
+	/* An edition: its sheen over the face, and a thin edge in its color
+	   inside the card (so it turns with it). */
+	.face :global(.shine) {
+		width: 100%;
+		height: 100%;
+		border-radius: inherit;
+	}
+	.face.ed::after {
+		content: '';
+		position: absolute;
+		inset: 0;
+		border-radius: inherit;
+		box-shadow: inset 0 0 0 2px var(--glow);
+		pointer-events: none;
 	}
 	.back.turned {
 		transform: rotateY(180deg);

@@ -52,6 +52,13 @@ export const whist22UI: GameUI = {
 		const rows = [1, 2, 3, 4].map((s) => ({ label: seatName(s), value: h.bids[s] === null ? '–' : `${h.won[s]}/${h.bids[s]}`, hot: s === W.PLAYER && h.bids[s] !== null && h.won[s] > h.bids[s]! }));
 		return { title: `This round · ${h.size} card${h.size === 1 ? '' : 's'} · bids ${W.bidTotal(h)} of ${h.size}`, rows: [rows[2], rows[3], rows[0], rows[1]] };
 	},
+	scoreChips(run) {
+		const h = run.hand as WhistHand;
+		return [3, 4, 1, 2].map((s) => {
+			const made = W.madeBid(h, s);
+			return { text: `${seatName(s)} ${h.won[s]}/${h.bids[s]} ${made ? '✓' : '✗'}`, tone: made ? 'good' : 'bad', me: s === W.PLAYER };
+		});
+	},
 	scoreLine(run) {
 		const h = run.hand as WhistHand;
 		return [3, 4, 1, 2].map((s) => `${seatName(s)} ${h.won[s]}/${h.bids[s]}${W.madeBid(h, s) ? ' ✓' : ''}`).join(' · ');
