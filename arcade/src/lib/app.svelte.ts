@@ -194,7 +194,14 @@ class Arcade {
 					}
 					break;
 				}
-				if (!R.aiToMove(run)) break;
+				if (!R.aiToMove(run)) {
+					// Your lead next (you took it): still sweep the trick to you.
+					if (done && this.swept !== this.lastTrickKey()) {
+						await sleep(750 / settings.speed);
+						if (this.run === run) await this.sweepTrick(sleep);
+					}
+					break;
+				}
 				if (done) {
 					// See who took it, then the cards go to them.
 					await sleep(750 / settings.speed);
@@ -259,11 +266,20 @@ class Arcade {
 		else if (this.screen === 'run') this.toMenu();
 	}
 
+	/** The finished trick already swept to its winner (so it stays off the table). */
+	swept = $state<string | null>(null);
+	/** A key for the last finished trick on the table. */
+	lastTrickKey(): string | null {
+		const t = this.ui && this.run ? this.ui.view(this.run).lastTrick : undefined;
+		return t ? t.plays.map((p) => `${p.card.suit}-${p.card.rank}`).join(',') : null;
+	}
+
 	private async sweepTrick(sleep: (ms: number) => Promise<unknown>) {
 		this.sweep = true;
 		this.v++;
 		sound.play('deal', { volume: 0.5, pitch: 0.85 });
 		await sleep(320 / settings.speed);
+		this.swept = this.lastTrickKey();
 		this.sweep = false;
 	}
 

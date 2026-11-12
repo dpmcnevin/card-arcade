@@ -223,6 +223,9 @@
 		// The trick; once finished, its winner's card is ringed, and then it
 		// slides to their seat.
 		const winner = view.trickDone ? view.lastTrick?.winner : undefined;
+		// A finished trick already swept to its winner stays off the table.
+		const lastKey = view.lastTrick?.plays.map((p) => key(p.card)).join(',');
+		if (view.trickDone && !arcade.sweep && arcade.swept === lastKey) return out;
 		const SEAT: Record<Pos, [number, number]> = { N: [CX, L.northY], S: [CX, L.handY - 40], W: [L.westX, CY], E: [L.eastX, CY] };
 		view.trick.forEach((t, i) => {
 			const [dx, dy] = TRICK[t.pos];
