@@ -9,6 +9,7 @@
 	import * as R from '$kit/src/run/run.ts';
 	import type { Card } from '$kit/src/core/rules/cards.ts';
 	import { pickCount, type Pos } from '../games/types.ts';
+	import { cardKey } from '../games/view.ts';
 	import CardSprite from './CardSprite.svelte';
 	import Button from './Button.svelte';
 	import { HAND_S } from '../layout.ts';
@@ -25,7 +26,7 @@
 	const run = $derived((void arcade.v, arcade.run!));
 	const view = $derived((void arcade.v, arcade.ui!.view(arcade.run!)));
 	const pre = $derived((void arcade.v, arcade.run!.phase === R.PHASE.PRE));
-	const key = (c: Card) => `${c.suit}-${c.rank}`;
+	const key = cardKey;
 	// The Standard Deck wears the game's own back; other decks their own.
 	const back = $derived(run.deck === 'standard' ? arcade.ui!.back : (R.allDecks(run.module).find((d) => d.key === run.deck)?.back ?? arcade.ui!.back));
 	// One key per deal, so every hand deals in fresh (the same card in the next
@@ -269,6 +270,12 @@
 			{#if seat.dealer}<span class="dealer" title="Dealer">D</span>{/if}{seat.name}{#if seat.active && seat.pos !== 'S' && arcade.busy}<span class="think"><i></i><i></i><i></i></span>{/if}{#if seat.tally}{#key seat.tally}<span class="tally">{seat.tally}</span>{/key}{/if}
 		</div>
 	{/each}
+	<!-- A word on a played card (the Fool: as 22, or as 0). -->
+	{#if !arcade.sweep}
+		{#each view.trick as t}
+			{#if t.note}<div class="note" class:high={t.note.high} style:left="{CX + TRICK[t.pos][0]}px" style:top="{CY + TRICK[t.pos][1] + 70}px">{t.note.text}</div>{/if}
+		{/each}
+	{/if}
 	{#if view.banner}<div class="banner" style:left="{L.bannerX ?? CX}px" style:top="{L.bannerY}px">{view.banner}</div>{/if}
 	{#if view.trump}
 		<div class="trump" style:left="{L.table.x + 20}px" style:top="{L.table.y + 16}px" class:red={cards.SUITS[view.trump].red} title="Trump: {cards.SUITS[view.trump].name}">
@@ -381,6 +388,22 @@
 		display: flex;
 		gap: 6px;
 		z-index: 70;
+	}
+	.note {
+		position: absolute;
+		transform: translateX(-50%);
+		padding: 2px 8px;
+		font-size: 14px;
+		font-weight: 700;
+		background: var(--panel-edge);
+		color: var(--ink);
+		box-shadow: 0 3px 0 rgba(0, 0, 0, 0.4);
+		z-index: 60;
+		pointer-events: none;
+	}
+	.note.high {
+		background: var(--brass);
+		color: var(--bg);
 	}
 	/* A question before a card is played (the Fool: 0 or 22). */
 	.ask {

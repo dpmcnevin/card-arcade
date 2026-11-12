@@ -3,12 +3,11 @@ import { tarot } from '$kit/games/tarot/module.ts';
 import { seatName } from '$kit/games/tarot/ai.ts';
 import type { TarotHand } from '$kit/games/tarot/rules.ts';
 import type { Run } from '$kit/src/run/run.ts';
-import type { Card } from '$kit/src/core/rules/cards.ts';
 import type { GameUI, TableView } from './types.ts';
 import { POS } from './types.ts';
+import { keys, trickView } from './view.ts';
 import TarotBid from './TarotBid.svelte';
 
-const key = (c: Card) => `${c.suit}-${c.rank}`;
 const bidName = (b: number) => T.BIDS[b - 1].name;
 
 function view(run: Run<TarotHand>): TableView {
@@ -24,19 +23,15 @@ function view(run: Run<TarotHand>): TableView {
 		active: !h.complete && h.turn === s && (playing || h.stage === 'bid'),
 		playable: s === T.PLAYER
 	}));
-	const shown = h.trick.length ? h.trick : (h.tricks.at(-1)?.plays ?? []);
 	const yourTurn = playing && !h.complete && h.turn === T.PLAYER;
 	return {
 		seats,
-		trick: shown.map((p) => ({ pos: POS[p.seat], card: p.card })),
-		trickDone: !h.trick.length && h.tricks.length > 0,
-		lastTrick: (() => { const t = h.tricks.at(-1); return t ? { plays: t.plays.map((p) => ({ pos: POS[p.seat], card: p.card })), winner: POS[t.winner] } : undefined; })(),
-		played: h.tricks.flatMap((t) => t.plays.map((p) => p.card)).concat(h.trick.map((p) => p.card)),
-		legal: new Set(yourTurn ? T.legalPlays(h, T.PLAYER).map(key) : []),
+		...trickView(h.trick, h.tricks),
+		legal: keys(yourTurn ? T.legalPlays(h, T.PLAYER) : []),
 		// Trumps have their own faces; nothing to tint.
 		isTrump: () => false,
 		// The dog's cards, ringed in your hand while you choose what to set aside.
-		ringed: h.stage === 'dog' && h.taker === T.PLAYER ? new Set(h.shownDog.map(key)) : undefined,
+		ringed: h.stage === 'dog' && h.taker === T.PLAYER ? keys(h.shownDog) : undefined,
 		banner: h.taker ? `${seatName(h.taker)} ${h.taker === T.PLAYER ? 'take' : 'takes'} a ${bidName(h.contract!)}` : undefined
 	};
 }

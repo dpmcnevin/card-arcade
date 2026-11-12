@@ -12,8 +12,6 @@
 	const h = $derived((void v, run.hand as WhistHand));
 </script>
 
-<!-- The run changes in place: redraw on every change. -->
-{#key v}
 	<div class="panel">
 		<div class="title">{h.blind ? 'Will your card win?' : `How many tricks will you take?`}</div>
 		<!-- Each bid as dots, one per card in the round: filled for tricks bid. -->
@@ -42,7 +40,6 @@
 			{#if h.blind}You can see everyone’s card but yours: bid 1 if yours beats theirs.{:else if W.forbidden(h, W.PLAYER) !== null}You deal, so not {W.forbidden(h, W.PLAYER)}: the bids can’t add up to {h.size}{/if}
 		</div>
 	</div>
-{/key}
 
 <style>
 	.panel {

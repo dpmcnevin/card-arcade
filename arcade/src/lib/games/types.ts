@@ -26,7 +26,8 @@ export interface SeatView {
 export interface TableView {
 	seats: SeatView[];
 	/** The trick on the table (the last one finished, until the next lead). */
-	trick: { pos: Pos; card: Card }[];
+	/** `note`: a word on a played card, when the card alone doesn't say (Whist 22's Fool: 22 or 0). */
+	trick: { pos: Pos; card: Card; note?: { text: string; high?: boolean } }[];
 	/** Card codes the player may play now. */
 	legal: Set<string>;
 	/** Trump suit, for the badge. */

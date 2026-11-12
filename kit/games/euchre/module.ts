@@ -12,6 +12,7 @@ import type { Card } from '../../src/core/rules/cards.ts';
 import type { EuchreHand } from './rules.ts';
 import type { GameModule, Line, RelicDef, Run, UpgradeDef } from '../../src/run/run.ts';
 import { settled, fateOfMine } from '../../src/run/settle.ts';
+import { goals, findCard, playedCards, aiUntil } from '../../src/run/helpers.ts';
 
 export type EuchreAction = { t: 'call'; suit: number; alone?: boolean } | { t: 'pass' } | { t: 'play'; card: string } | { t: 'playOut' };
 
@@ -50,8 +51,6 @@ export interface EuchreCtx {
 const TABLE_BASE = [100, 175, 280, 410, 580, 800, 1100, 1480];
 const BOARD_SCALE = [1, 1.25, 1.55];
 const PER_TRICK = 25;
-const round10 = (n: number) => Math.round(n / 10) * 10;
-const findCard = (hand: Card[], code: string) => hand.find((c) => cards.code(c) === code);
 
 /** Let the AI seats call until it's your call or trump is made. */
 function runCalls(run: Run<EuchreHand>, stepwise = false) {
@@ -72,11 +71,7 @@ function runCalls(run: Run<EuchreHand>, stepwise = false) {
 /** Let the AI seats play until it's your turn or the hand is over. */
 function runPlay(run: Run<EuchreHand>) {
 	const h = run.hand;
-	let guard = 0;
-	while (!h.complete && h.turn !== E.PLAYER) {
-		if (++guard > 40) throw new Error('euchre: play stuck');
-		E.play(h, h.turn, ai.chooseCard(h, h.turn));
-	}
+	aiUntil(() => h.complete || h.turn === E.PLAYER, () => void E.play(h, h.turn, ai.chooseCard(h, h.turn)), 40, 'euchre: play');
 }
 
 function ctx(run: Run<EuchreHand>): EuchreCtx {
@@ -144,7 +139,7 @@ export const euchre: GameModule<EuchreHand, EuchreAction, EuchreCtx> = {
 	boardsPerTable: 3,
 	handsPerBoard: 4,
 	startMoney: 6,
-	goal: (table, board) => round10(TABLE_BASE[Math.min(table, 8) - 1] * BOARD_SCALE[board - 1]),
+	goal: goals(TABLE_BASE, BOARD_SCALE),
 	boardName: (run) => (run.board === 3 ? 'Big Board' : `Board ${run.board}`),
 	deal(run) {
 		const dealer = (run.ext.dealer = run.ext.dealer ? cards.nextSeat(run.ext.dealer) : cards.WEST);
@@ -223,7 +218,7 @@ export const euchre: GameModule<EuchreHand, EuchreAction, EuchreCtx> = {
 			lines.push({ label: 'Euchred them', chips: 60 });
 			levels.push('euchre');
 		}
-		const played = run.hand.tricks.flatMap((t) => t.plays.map((p) => ({ card: p.card, mine: p.seat === E.PLAYER, wonByUs: E.sameSide(t.winner, E.PLAYER), winning: p.seat === t.winner })));
+		const played = playedCards(run.hand.tricks, (s) => s === E.PLAYER, (s) => E.sameSide(s, E.PLAYER));
 		return { title, made: true, lines, ctx: c, levels, played, detail: c.points };
 	},
 	newPack: E.newDeck,

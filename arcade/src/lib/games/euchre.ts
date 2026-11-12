@@ -6,6 +6,7 @@ import type { Run } from '$kit/src/run/run.ts';
 import * as cards from '$kit/src/core/rules/cards.ts';
 import type { GameUI, TableView } from './types.ts';
 import { POS } from './types.ts';
+import { keys, trickView } from './view.ts';
 import EuchreCall from './EuchreCall.svelte';
 
 function view(run: Run<EuchreHand>): TableView {
@@ -21,16 +22,12 @@ function view(run: Run<EuchreHand>): TableView {
 		active: !h.complete && h.turn === s,
 		playable: s === E.PLAYER
 	}));
-	const shown = h.trick.length ? h.trick : (h.tricks.at(-1)?.plays ?? []);
 	const yourTurn = h.trump !== null && !h.complete && h.turn === E.PLAYER;
 	const maker = h.maker ? `${seatName(h.maker)} made ${cards.SUITS[h.trump!].name.toLowerCase()}${h.alone ? ', alone' : ''}` : '';
 	return {
 		seats,
-		trick: shown.map((p) => ({ pos: POS[p.seat], card: p.card })),
-		trickDone: !h.trick.length && h.tricks.length > 0,
-		lastTrick: (() => { const t = h.tricks.at(-1); return t ? { plays: t.plays.map((p) => ({ pos: POS[p.seat], card: p.card })), winner: POS[t.winner] } : undefined; })(),
-		played: h.tricks.flatMap((t) => t.plays.map((p) => p.card)).concat(h.trick.map((p) => p.card)),
-		legal: new Set(yourTurn ? E.legalPlays(h, E.PLAYER).map((c) => `${c.suit}-${c.rank}`) : []),
+		...trickView(h.trick, h.tricks),
+		legal: keys(yourTurn ? E.legalPlays(h, E.PLAYER) : []),
 		trump: h.trump ?? undefined,
 		// Both bowers are trumps: the left one is the other jack of trump's color.
 		isTrump: h.trump !== null ? (c) => E.isTrump(c, h.trump!) : undefined,

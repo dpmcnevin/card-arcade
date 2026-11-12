@@ -15,6 +15,7 @@ import * as R from '../../src/run/run.ts';
 import type { Card, Hands } from '../../src/core/rules/cards.ts';
 import type { HandState, PassDir } from './rules/hearts.ts';
 import type { GameModule, RelicDef, Run, UpgradeDef, Line } from '../../src/run/run.ts';
+import { findCard, playedCards } from '../../src/run/helpers.ts';
 import { settled, fateOfMine } from '../../src/run/settle.ts';
 
 export interface HeartsHand {
@@ -39,7 +40,6 @@ const BOARD_SCALE = [1, 1.3, 1.65]; // as in Shoot the Moon
 const CLEAN_BONUS = 10;
 
 const round5 = (n: number) => (n < 100 ? Math.round(n / 5) * 5 : Math.round(n / 10) * 10);
-const findCard = (hand: Card[], code: string) => hand.find((c) => cards.code(c) === code);
 
 function aiCtx(run: Run, rng = run.rng, seat = 0): ai.AIContext {
 	// The Cartel: every opponent pushes points onto you; the Shark: North does, sharply.
@@ -327,7 +327,7 @@ export const hearts: GameModule<HeartsHand, HeartsAction, relicsLib.ScoreCtx> = 
 			}
 		}
 		const st = run.hand.state!;
-		const played = st.tricks.flatMap((t) => t.plays.map((p) => ({ card: p.card, mine: p.seat === H.PLAYER, wonByUs: t.winner === H.PLAYER, winning: p.seat === t.winner })));
+		const played = playedCards(st.tricks, (s) => s === H.PLAYER, (s) => s === H.PLAYER);
 		return { title, made: true, lines, ctx, levels, played, detail: { points: H.pointsTaken(st), shooter: ctx.shooter } };
 	},
 	relics: RELICS,

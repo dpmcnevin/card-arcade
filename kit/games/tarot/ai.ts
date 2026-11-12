@@ -9,7 +9,7 @@ import * as T from './rules.ts';
 import type { Card } from '../../src/core/rules/cards.ts';
 import type { Bid, TarotHand } from './rules.ts';
 
-export const seatName = (s: number) => (s === T.PLAYER ? 'You' : T.SEAT_NAMES[s]);
+export const seatName = (s: number) => cards.seatName(s, T.PLAYER);
 
 /** The usual Tarot hand count (36 or so to take, 52 to guard, 68 without the dog, 78 against it). */
 export function handCount(hand: Card[]): number {

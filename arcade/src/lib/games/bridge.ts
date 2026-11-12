@@ -5,6 +5,7 @@ import type { Deal } from '$kit/games/bridge/module.ts';
 import type { Run } from '$kit/src/run/run.ts';
 import type { GameUI, TableView } from './types.ts';
 import { POS } from './types.ts';
+import { keys, trickView } from './view.ts';
 import BridgeBid from './BridgeBid.svelte';
 
 function view(run: Run<Deal>): TableView {
@@ -19,15 +20,11 @@ function view(run: Run<Deal>): TableView {
 		active: !!st && !st.complete && st.turn === s,
 		playable: !!st && isPlayerTurn(run) && st.turn === s
 	}));
-	const shown = st ? (st.trick.length ? st.trick : (st.tricks.at(-1)?.plays ?? [])) : [];
 	const c = d.contract;
 	return {
 		seats,
-		trick: shown.map((p) => ({ pos: POS[p.seat], card: p.card })),
-		trickDone: !!st && !st.trick.length && st.tricks.length > 0,
-		lastTrick: (() => { const t = st?.tricks.at(-1); return t ? { plays: t.plays.map((p) => ({ pos: POS[p.seat], card: p.card })), winner: POS[t.winner] } : undefined; })(),
-		played: st ? st.played.map((p) => p.card) : [],
-		legal: new Set(st && isPlayerTurn(run) ? play.legalPlays(st, st.turn).map((x) => `${x.suit}-${x.rank}`) : []),
+		...trickView(st?.trick, st?.tricks),
+		legal: keys(st && isPlayerTurn(run) ? play.legalPlays(st, st.turn) : []),
 		trump: c && c.strain !== cards.NOTRUMP ? c.strain : undefined,
 		banner: c ? `${cards.contractName(c)}${c.doubled ? ' doubled' : ''} · need ${6 + c.level} tricks` : undefined
 	};

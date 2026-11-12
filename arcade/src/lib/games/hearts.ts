@@ -5,6 +5,7 @@ import type { Run } from '$kit/src/run/run.ts';
 import * as R from '$kit/src/run/run.ts';
 import type { GameUI, TableView } from './types.ts';
 import { POS } from './types.ts';
+import { keys, trickView } from './view.ts';
 import HeartsPass from './HeartsPass.svelte';
 
 function view(run: Run<HeartsHand>): TableView {
@@ -23,18 +24,14 @@ function view(run: Run<HeartsHand>): TableView {
 		active: !!st && !st.complete && st.turn === s,
 		playable: s === H.PLAYER
 	}));
-	const shown = st ? (st.trick.length ? st.trick : (st.tricks.at(-1)?.plays ?? [])) : [];
 	return {
 		seats,
-		trick: shown.map((p) => ({ pos: POS[p.seat], card: p.card })),
+		...trickView(st?.trick, st?.tricks),
 		// The cards passed to you, ringed until the first trick is done.
-		ringed: st && st.tricks.length === 0 ? new Set(h.received.map((c) => `${c.suit}-${c.rank}`)) : undefined,
+		ringed: st && st.tricks.length === 0 ? keys(h.received) : undefined,
 		// The Fog: cards after the lead stay face down until the trick is done.
-		hidden: R.bossIs(run, 'fog') && st && st.trick.length ? new Set(st.trick.slice(1).filter((p) => p.seat !== H.PLAYER).map((p) => `${p.card.suit}-${p.card.rank}`)) : undefined,
-		trickDone: !!st && !st.trick.length && st.tricks.length > 0,
-		lastTrick: (() => { const t = st?.tricks.at(-1); return t ? { plays: t.plays.map((p) => ({ pos: POS[p.seat], card: p.card })), winner: POS[t.winner] } : undefined; })(),
-		played: st ? st.played.map((p) => p.card) : [],
-		legal: new Set(st && !st.complete && st.turn === H.PLAYER ? H.legalPlays(st, H.PLAYER).map((c) => `${c.suit}-${c.rank}`) : []),
+		hidden: R.bossIs(run, 'fog') && st && st.trick.length ? keys(st.trick.slice(1).filter((p) => p.seat !== H.PLAYER).map((p) => p.card)) : undefined,
+		legal: keys(st && !st.complete && st.turn === H.PLAYER ? H.legalPlays(st, H.PLAYER) : []),
 		banner: !st ? `Pass ${h.passDir}` : h.passDir === 'hold' ? 'No passing this hand' : undefined
 	};
 }

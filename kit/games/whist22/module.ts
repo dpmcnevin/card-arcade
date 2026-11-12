@@ -13,6 +13,7 @@ import type { Card } from '../../src/core/rules/cards.ts';
 import type { WhistHand } from './rules.ts';
 import type { GameModule, Line, RelicDef, Run, UpgradeDef } from '../../src/run/run.ts';
 import { settled } from '../../src/run/settle.ts';
+import { goals, findCard, playedCards, aiUntil } from '../../src/run/helpers.ts';
 
 export type WhistAction = { t: 'bid'; bid: number } | { t: 'play'; card: string; fool?: number } | { t: 'playOut' };
 
@@ -37,8 +38,6 @@ export interface WhistCtx {
 
 const TABLE_BASE = [80, 130, 200, 290, 400, 540, 720, 950];
 const BOARD_SCALE = [1, 1.25, 1.55];
-const round10 = (n: number) => Math.round(n / 10) * 10;
-const findCard = (hand: Card[], code: string) => hand.find((c) => cards.code(c) === code);
 
 function runBids(run: Run<WhistHand>, stepwise = false) {
 	const h = run.hand;
@@ -55,12 +54,7 @@ function runBids(run: Run<WhistHand>, stepwise = false) {
 
 function runPlay(run: Run<WhistHand>) {
 	const h = run.hand;
-	let guard = 0;
-	while (!h.complete && h.turn !== W.PLAYER) {
-		if (++guard > 40) throw new Error('whist22: play stuck');
-		const m = ai.chooseCard(h, h.turn);
-		W.play(h, h.turn, m.card, m.fool);
-	}
+	aiUntil(() => h.complete || h.turn === W.PLAYER, () => void aiStep(h), 40, 'whist22: play');
 }
 
 function aiStep(h: WhistHand) {
@@ -115,7 +109,7 @@ export const whist22: GameModule<WhistHand, WhistAction, WhistCtx> = {
 	boardsPerTable: 3,
 	handsPerBoard: 3,
 	startMoney: 6,
-	goal: (table, board) => round10(TABLE_BASE[Math.min(table, 8) - 1] * BOARD_SCALE[board - 1]),
+	goal: goals(TABLE_BASE, BOARD_SCALE),
 	boardName: (run) => (run.board === 3 ? 'High Board' : `Board ${run.board}`),
 	deal(run) {
 		const i = (run.ext.round = run.ext.round === undefined ? 0 : (run.ext.round + 1) % W.ROUNDS.length);
@@ -192,7 +186,7 @@ export const whist22: GameModule<WhistHand, WhistAction, WhistCtx> = {
 			lines.push({ label: 'Blind, on your forehead', chips: 60 });
 			levels.push('blind');
 		}
-		const played = run.hand.tricks.flatMap((t) => t.plays.map((p) => ({ card: p.card, mine: p.seat === W.PLAYER, wonByUs: t.winner === W.PLAYER, winning: p.seat === t.winner })));
+		const played = playedCards(run.hand.tricks, (s) => s === W.PLAYER, (s) => s === W.PLAYER);
 		return { title, made: true, lines, ctx: c, levels, played };
 	},
 	newPack: W.newDeck,

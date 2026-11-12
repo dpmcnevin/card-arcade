@@ -23,7 +23,6 @@ import type { RNG } from '../../src/core/rules/rng.ts';
 export const TRUMPS = cards.TRUMPS;
 export const KNIGHT = cards.KNIGHT;
 export const PLAYER = cards.SOUTH;
-export const SEAT_NAMES: Record<number, string> = { 1: 'North', 2: 'East', 3: 'South', 4: 'West' };
 export const HAND_SIZE = 18;
 export const DOG_SIZE = 6;
 

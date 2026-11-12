@@ -15,6 +15,7 @@ import * as R from '../../src/run/run.ts';
 import type { Card, Contract, Hands } from '../../src/core/rules/cards.ts';
 import type { PlayState, PlaySummary, Trick } from './rules/play.ts';
 import type { GameModule, RelicDef, Run, UpgradeDef, BaseScore } from '../../src/run/run.ts';
+import { findCard, playedCards } from '../../src/run/helpers.ts';
 import { settled, fateOfMine } from '../../src/run/settle.ts';
 
 export interface Deal {
@@ -64,7 +65,6 @@ function advanceAI(run: Run<Deal>) {
 	}
 }
 
-const findCard = (hand: Card[], code: string) => hand.find((c) => cards.code(c) === code);
 
 /** The facts relics see (Vulnerable's ScoreCtx). */
 function scoreCtx(run: Run<Deal>, contract: Contract, tricksWon: number, summary: PlaySummary, tricks: Trick[]): relicsLib.ScoreCtx {
@@ -265,9 +265,8 @@ export const bridge: GameModule<Deal, BridgeAction, relicsLib.ScoreCtx> = {
 		const won = play.declarerTricks(st, d.declarer);
 		const b = base(run, scoreCtx(run, d.contract!, won, play.summarise(st, d.declarer), st.tricks));
 		if (b.made && d.contract!.level >= 6) run.ext.slams = (run.ext.slams ?? 0) + 1;
-		b.played = st.tricks.flatMap((t) =>
-			t.plays.map((p) => ({ card: p.card, mine: cards.sameSide(p.seat, d.declarer), wonByUs: cards.sameSide(t.winner, d.declarer), winning: p.seat === t.winner }))
-		);
+		const ours = (s: number) => cards.sameSide(s, d.declarer);
+		b.played = playedCards(st.tricks, ours, ours);
 		return b;
 	},
 	relics: RELICS,

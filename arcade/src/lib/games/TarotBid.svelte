@@ -27,8 +27,6 @@
 	});
 </script>
 
-<!-- The run changes in place: redraw on every change. -->
-{#key v}
 <div class="panel">
 	{#if h.stage === 'bid'}
 		<div class="title">Your bid</div>
@@ -54,7 +52,6 @@
 		{#if problem}<div class="bad">{problem}</div>{/if}
 	{/if}
 </div>
-{/key}
 
 <style>
 	.panel {

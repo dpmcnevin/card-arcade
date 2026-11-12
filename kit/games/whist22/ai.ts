@@ -4,11 +4,12 @@
 // safe card once it has enough, takes cheaply when it needs more, and keeps
 // the Fool to fix the count at the end (22 to win, 0 to lose).
 
+import * as cards from '../../src/core/rules/cards.ts';
 import * as W from './rules.ts';
 import type { Card } from '../../src/core/rules/cards.ts';
 import type { WhistHand } from './rules.ts';
 
-export const seatName = (s: number) => (s === W.PLAYER ? 'You' : W.SEAT_NAMES[s]);
+export const seatName = (s: number) => cards.seatName(s, W.PLAYER);
 
 /** Expected tricks for a hand: each card's chance of beating three others. */
 export function expected(hand: Card[]): number {

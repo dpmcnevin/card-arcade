@@ -14,6 +14,7 @@ import type { Card } from '../../src/core/rules/cards.ts';
 import type { Bid, TarotHand } from './rules.ts';
 import type { GameModule, Line, RelicDef, Run, UpgradeDef } from '../../src/run/run.ts';
 import { settled, fateOfMine } from '../../src/run/settle.ts';
+import { goals, findCard, playedCards, aiUntil } from '../../src/run/helpers.ts';
 
 export type TarotAction = { t: 'bid'; bid: Bid | 0 } | { t: 'aside'; cards: string[] } | { t: 'play'; card: string } | { t: 'playOut' };
 
@@ -53,8 +54,6 @@ export interface TarotCtx {
 
 const TABLE_BASE = [160, 280, 440, 640, 900, 1220, 1650, 2200];
 const BOARD_SCALE = [1, 1.25, 1.55];
-const round10 = (n: number) => Math.round(n / 10) * 10;
-const findCard = (hand: Card[], code: string) => hand.find((c) => cards.code(c) === code);
 /** A Garde or better multiplies the hand. */
 const CONTRACT_X = [1, 1, 1.5, 2, 2.5];
 
@@ -95,11 +94,7 @@ function runBids(run: Run<TarotHand>, stepwise = false) {
 
 function runPlay(run: Run<TarotHand>) {
 	const h = run.hand;
-	let guard = 0;
-	while (!h.complete && h.turn !== T.PLAYER) {
-		if (++guard > 100) throw new Error('tarot: play stuck');
-		T.play(h, h.turn, ai.chooseCard(h, h.turn));
-	}
+	aiUntil(() => h.complete || h.turn === T.PLAYER, () => void T.play(h, h.turn, ai.chooseCard(h, h.turn)), 100, 'tarot: play');
 }
 
 function ctx(run: Run<TarotHand>): TarotCtx {
@@ -166,7 +161,7 @@ export const tarot: GameModule<TarotHand, TarotAction, TarotCtx> = {
 	boardsPerTable: 3,
 	handsPerBoard: 3,
 	startMoney: 6,
-	goal: (table, board) => round10(TABLE_BASE[Math.min(table, 8) - 1] * BOARD_SCALE[board - 1]),
+	goal: goals(TABLE_BASE, BOARD_SCALE),
 	boardName: (run) => (run.board === 3 ? 'Grand Board' : `Board ${run.board}`),
 	deal(run) {
 		newDeal(run);
@@ -254,7 +249,7 @@ export const tarot: GameModule<TarotHand, TarotAction, TarotCtx> = {
 		const handful = c.trumpsHeld >= 15 ? 40 : c.trumpsHeld >= 13 ? 30 : c.trumpsHeld >= 10 ? 20 : 0;
 		if (handful) lines.push({ label: `Poignée: ${c.trumpsHeld} trumps`, chips: handful });
 		const ours = (s: number) => T.sideOf(h, s) === T.sideOf(h, T.PLAYER);
-		const played = h.tricks.flatMap((t) => t.plays.map((p) => ({ card: p.card, mine: p.seat === T.PLAYER, wonByUs: ours(t.winner), winning: p.seat === t.winner })));
+		const played = playedCards(h.tricks, (s) => s === T.PLAYER, ours);
 		return { title, made: true, lines, ctx: c, levels, played, detail: c.gamePoints };
 	},
 	newPack: T.newDeck,

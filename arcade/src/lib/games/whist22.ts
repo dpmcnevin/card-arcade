@@ -4,12 +4,10 @@ import { seatName } from '$kit/games/whist22/ai.ts';
 import type { WhistHand } from '$kit/games/whist22/rules.ts';
 import type { Run } from '$kit/src/run/run.ts';
 import * as cards from '$kit/src/core/rules/cards.ts';
-import type { Card } from '$kit/src/core/rules/cards.ts';
 import type { GameUI, TableView } from './types.ts';
 import { POS } from './types.ts';
+import { keys, trickView } from './view.ts';
 import WhistBid from './WhistBid.svelte';
-
-const key = (c: Card) => `${c.suit}-${c.rank}`;
 
 function view(run: Run<WhistHand>): TableView {
 	const h = run.hand;
@@ -25,15 +23,12 @@ function view(run: Run<WhistHand>): TableView {
 		active: !h.complete && h.turn === s,
 		playable: s === W.PLAYER
 	}));
-	const shown = h.trick.length ? h.trick : (h.tricks.at(-1)?.plays ?? []);
 	const yourTurn = h.stage === 'play' && !h.complete && h.turn === W.PLAYER;
 	return {
 		seats,
-		trick: shown.map((p) => ({ pos: POS[p.seat], card: p.card })),
-		trickDone: !h.trick.length && h.tricks.length > 0,
-		lastTrick: (() => { const t = h.tricks.at(-1); return t ? { plays: t.plays.map((p) => ({ pos: POS[p.seat], card: p.card })), winner: POS[t.winner] } : undefined; })(),
-		played: h.tricks.flatMap((t) => t.plays.map((p) => p.card)).concat(h.trick.map((p) => p.card)),
-		legal: new Set(yourTurn ? h.hands[W.PLAYER].map(key) : []),
+		// The Fool says what it counted for.
+		...trickView(h.trick, h.tricks, { note: (p) => (W.isFool(p.card) ? { text: p.value === 22 ? 'as 22' : 'as 0', high: p.value === 22 } : undefined) }),
+		legal: keys(yourTurn ? h.hands[W.PLAYER] : []),
 		isTrump: () => false,
 		banner: `${h.size}-card round${h.blind ? ' · on your forehead' : ''}`
 	};

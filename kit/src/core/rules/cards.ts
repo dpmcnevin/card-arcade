@@ -109,6 +109,11 @@ export const HCP_VALUE: Record<number, number> = { 14: 4, 13: 3, 12: 2, 11: 1 };
 export const HAND_SIZE = 13;
 export const TRICK_COUNT = 13;
 
+/** A seat's name at the table, "You" for the player's. */
+export function seatName(seat: number, player = SOUTH): string {
+	return seat === player ? 'You' : SEATS[seat].name;
+}
+
 /** Next seat clockwise. */
 export function nextSeat(seat: number): number {
 	return (seat % 4) + 1;

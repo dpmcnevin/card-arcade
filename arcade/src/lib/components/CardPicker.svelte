@@ -1,14 +1,10 @@
 <!-- Choose a card from the run's pack (for a card edition or a seal): the
      pack by suit, each card with its edition and seal. -->
 <script lang="ts">
-	import * as R from '$kit/src/run/run.ts';
 	import type { Run } from '$kit/src/run/run.ts';
 	import type { Card } from '$kit/src/core/rules/cards.ts';
-	import { CARD_EDITIONS } from '$kit/src/run/content.ts';
-	import { cardFace } from '../ui/images.ts';
-	import { editionColor } from './editions.ts';
-	import SealBadge from './SealBadge.svelte';
 	import Button from './Button.svelte';
+	import PackGrid from './PackGrid.svelte';
 
 	let {
 		run,
@@ -18,7 +14,6 @@
 		cancel,
 		usable
 	}: { run: Run; title: string; text: string; choose: (c: Card) => void; cancel: () => void; usable?: (c: Card) => [boolean, string?] } = $props();
-	const rows = $derived([5, 4, 3, 2, 1].map((s) => run.pack.filter((c) => c.suit === s).sort((a, b) => b.rank - a.rank)).filter((r) => r.length));
 </script>
 
 <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
@@ -26,19 +21,7 @@
 	<div class="panel" onclick={(e) => e.stopPropagation()}>
 		<h2>Choose a card: {title}</h2>
 		<p>{text}</p>
-		{#each rows as row}
-			<div class="row">
-				{#each row as c (c.id)}
-					{@const m = R.mod(run, c)}
-					{@const seal = R.sealOf(run, c)}
-					{@const ok: [boolean, string?] = usable ? usable(c) : [true]}
-					<button class="card" class:no={!ok[0]} disabled={!ok[0]} onclick={() => choose(c)} title={!ok[0] ? ok[1] : m.edition ? CARD_EDITIONS[m.edition].text : ''}>
-						<img src={cardFace(c)} alt="" style:outline={m.edition ? `3px solid ${editionColor(m.edition)}` : ''} />
-						{#if seal}<span class="badge"><SealBadge {seal} size={18} /></span>{/if}
-					</button>
-				{/each}
-			</div>
-		{/each}
+		<div class="grid"><PackGrid {run} pick={choose} {usable} /></div>
 		<div class="foot"><Button variant="plain" onclick={cancel} style="width: 140px">Cancel</Button></div>
 	</div>
 </div>
@@ -55,7 +38,12 @@
 		justify-content: center;
 		z-index: 150;
 	}
+	/* Never wider or taller than the table: a big pack wraps, then scrolls. */
 	.panel {
+		max-width: 860px;
+		max-height: 88%;
+		display: flex;
+		flex-direction: column;
 		padding: 16px 20px;
 		background: var(--panel);
 		border: 2px solid var(--brass-dim);
@@ -68,35 +56,9 @@
 		margin: 4px 0 10px;
 		color: var(--ink-dim);
 	}
-	.row {
-		display: flex;
-		gap: 4px;
-		margin-bottom: 6px;
-	}
-	.card {
-		position: relative;
-		padding: 0;
-		border: none;
-		background: none;
-		cursor: pointer;
-	}
-	.card:hover:not(:disabled) {
-		transform: translateY(-4px);
-	}
-	.card.no {
-		opacity: 0.3;
-		cursor: default;
-	}
-	.card img {
-		width: 54px;
-		height: 76px;
-		image-rendering: auto;
-		display: block;
-	}
-	.badge {
-		position: absolute;
-		right: -4px;
-		top: -4px;
+	.grid {
+		overflow-y: auto;
+		min-height: 0;
 	}
 	.foot {
 		display: flex;

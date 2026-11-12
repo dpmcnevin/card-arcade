@@ -16,7 +16,6 @@ import type { Card, Hands } from '../../src/core/rules/cards.ts';
 import type { RNG } from '../../src/core/rules/rng.ts';
 
 export const RANKS = [9, 10, 11, 12, 13, 14];
-export const SEAT_NAMES: Record<number, string> = { 1: 'North', 2: 'East', 3: 'South', 4: 'West' };
 export const PLAYER = cards.SOUTH;
 export const PARTNER = cards.NORTH;
 

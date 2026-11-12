@@ -12,7 +12,6 @@ import type { Card, Hands } from '../../src/core/rules/cards.ts';
 import type { RNG } from '../../src/core/rules/rng.ts';
 
 export const PLAYER = cards.SOUTH;
-export const SEAT_NAMES: Record<number, string> = { 1: 'North', 2: 'East', 3: 'South', 4: 'West' };
 /** The round sizes, in order, over and over. */
 export const ROUNDS = [5, 4, 3, 2, 1, 2, 3, 4, 5];
 

@@ -95,7 +95,8 @@
 			{:else}
 				<Table />
 				{#if phase === R.PHASE.PRE}
-					<div class="pre"><ui.Pre {run} picked={arcade.picked} act={(a) => arcade.game(a)} v={arcade.v} /></div>
+					<!-- The run changes in place: redraw the panel on every change. -->
+					<div class="pre">{#key arcade.v}<ui.Pre {run} picked={arcade.picked} act={(a) => arcade.game(a)} v={arcade.v} />{/key}</div>
 				{:else if phase === R.PHASE.PLAY && !arcade.busy && (void arcade.v, ui.view(run).legal.size)}
 					{@const claim = (void arcade.v, !!run.module.settled?.(run))}
 					<div class="out" class:claim style:top="{L.outAt[1]}px">
