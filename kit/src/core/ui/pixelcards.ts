@@ -256,40 +256,166 @@ function trumpMark2(b: Bitmap) {
 	b.fillRect(sx + 1, sy + 1, 3, 3, P.ink);
 }
 
-/** A Tarot trump: its number on a tinted deco panel, stars, and a gold
- *  sunburst behind the oudlers (1 and 21). The Excuse is a star. */
+// ------------------------------------------------------------ Tarot trumps
+//
+// Double-ended, like the real cards: a little scene drawn from the trump's
+// number (a sky, the ground, something on the horizon, a few figures),
+// mirrored top and bottom, between two bands of grey ornament holding the
+// number. The oudlers (1 and 21) are trimmed in gold. The Excuse is a
+// jester's hat over a star.
+
+const SKIES = [hex('#f2b46a'), hex('#7fb8e0'), hex('#b07ab8'), hex('#2b3566'), hex('#cfe3ea'), hex('#e88a5a')];
+const GROUNDS = [hex('#6aa84f'), hex('#93c47d'), hex('#e0c27a'), hex('#3d7fb8'), hex('#a8743e'), hex('#4f8a5a')];
+const CLOTHES = [hex('#c8323c'), hex('#2c5fa8'), hex('#e0a42a'), hex('#5a8a3a'), hex('#7a4fc1'), hex('#1b1d26'), hex('#d9771f')];
+const SKIN = hex('#e8b98a'),
+	WOOD = hex('#7a4a22'),
+	LEAF = hex('#2f6b34'),
+	STONE = hex('#8a8f9a'),
+	SNOW = hex('#f3ead6'),
+	ROOF = hex('#a8432f'),
+	WALL = hex('#e6d2a8'),
+	SUN = hex('#f6d34a'),
+	GREY = hex('#c9c6bd'),
+	GREY_D = hex('#8c887e');
+
+/** A small seeded random for scenes (the same trump always looks the same). */
+function sceneRng(n: number) {
+	let x = (n * 2654435761) >>> 0 || 1;
+	return () => ((x = (x * 1103515245 + 12345) >>> 0), x / 4294967296);
+}
+
+/** Draw trump n's scene into a w x h bitmap. */
+function scene(n: number, w: number, h: number): Bitmap {
+	const b = newBitmap(w, h);
+	const r = sceneRng(n * 7 + 3);
+	const pick = <T,>(list: T[]) => list[Math.floor(r() * list.length)];
+	const sky = n === 21 ? hex('#f6d98a') : SKIES[n % SKIES.length];
+	const night = sky === SKIES[3];
+	const ground = GROUNDS[(n * 5) % GROUNDS.length];
+	const water = ground === GROUNDS[3];
+	const horizon = Math.round(h * (0.5 + r() * 0.15));
+	b.fillRect(0, 0, w, horizon, sky);
+	b.fillRect(0, horizon, w, h - horizon, ground);
+	// A darker band of ground near the horizon, for depth.
+	b.fillRect(0, horizon, w, 2, [ground[0] * 0.85, ground[1] * 0.85, ground[2] * 0.85, 1]);
+	if (n === 21) {
+		// The world: a sunburst over everything.
+		for (let i = 0; i < 12; i += 2) {
+			const a0 = Math.PI + (i / 12) * Math.PI,
+				a1 = Math.PI + ((i + 1) / 12) * Math.PI;
+			b.fillPoly([w / 2, horizon, w / 2 + Math.cos(a0) * 60, horizon + Math.sin(a0) * 60, w / 2 + Math.cos(a1) * 60, horizon + Math.sin(a1) * 60], hex('#f2c14e'));
+		}
+	}
+	// The sky: a sun, or a moon and stars at night.
+	const sx = 6 + Math.floor(r() * (w - 12));
+	if (night) {
+		b.fillCircle(sx, 6, 3.5, SNOW);
+		b.fillCircle(sx + 2, 5, 3, sky);
+		for (let i = 0; i < 6; i++) b.set(Math.floor(r() * w), Math.floor(r() * (horizon - 4)), SNOW);
+	} else if (r() < 0.6) {
+		b.fillCircle(sx, 6, 3.5, SUN);
+	}
+	// On the horizon: one or two of a house, a tree, a mountain, a castle.
+	const things = water ? ['boat', 'boat'] : ['house', 'tree', 'mountain', 'castle', 'tree'];
+	const count = 1 + Math.floor(r() * 2);
+	for (let i = 0; i < count; i++) {
+		const kind = pick(things);
+		const x = Math.floor(((i + 0.5 + (r() - 0.5) * 0.6) / count) * w);
+		const g = horizon + 1;
+		if (kind === 'house') {
+			b.fillRect(x - 5, g - 7, 10, 7, WALL);
+			b.fillPoly([x - 7, g - 7, x + 7, g - 7, x, g - 13], ROOF);
+			b.fillRect(x - 1, g - 4, 2, 4, WOOD);
+		} else if (kind === 'tree') {
+			b.fillRect(x - 1, g - 6, 2, 6, WOOD);
+			b.fillCircle(x, g - 9, 4.5, LEAF);
+		} else if (kind === 'mountain') {
+			b.fillPoly([x - 12, g, x + 12, g, x, g - 16], STONE);
+			b.fillPoly([x - 3.5, g - 11, x + 3.5, g - 11, x, g - 16], SNOW);
+		} else if (kind === 'castle') {
+			b.fillRect(x - 7, g - 10, 14, 10, STONE);
+			for (let k = -7; k < 7; k += 4) b.fillRect(x + k, g - 12, 2, 2, STONE);
+			b.fillRect(x - 1, g - 5, 2, 5, hex('#3a3a44'));
+			b.fillRect(x + 5, g - 17, 1, 5, WOOD);
+			b.fillRect(x + 6, g - 17, 3, 2, ROOF);
+		} else {
+			b.fillPoly([x - 8, g - 2, x + 8, g - 2, x + 5, g + 2, x - 5, g + 2], WOOD);
+			b.fillRect(x, g - 12, 1, 10, WOOD);
+			b.fillPoly([x + 1, g - 12, x + 1, g - 3, x + 7, g - 3], SNOW);
+		}
+	}
+	// In front: a few people (the cards are full of them).
+	const people = n === 1 ? 1 : 1 + Math.floor(r() * 3);
+	for (let i = 0; i < people; i++) {
+		const x = Math.floor(((i + 0.5) / people) * w + (r() - 0.5) * 6);
+		const y = h - 3 - Math.floor(r() * Math.max(1, h - horizon - 13));
+		const coat = pick(CLOTHES);
+		b.fillRect(x - 1, y - 11, 3, 3, SKIN);
+		b.fillRect(x - 2, y - 8, 5, 6, coat);
+		b.fillRect(x - 2, y - 2, 2, 3, hex('#3a2a20'));
+		b.fillRect(x + 1, y - 2, 2, 3, hex('#3a2a20'));
+		if (r() < 0.5) b.fillRect(x - 2, y - 12, 5, 1, pick(CLOTHES)); // a hat
+	}
+	return b;
+}
+
+/** The grey ornament band, with the number in a cream box at one end. */
+function band(b: Bitmap, y: number, h: number, num: string[], numLeft: boolean, color: Color) {
+	for (let j = 0; j < h; j++)
+		for (let i = 3; i < FW - 3; i++) {
+			// A small lattice, like engraved scrollwork.
+			const on = (i + j) % 4 === 0 || (i - j + 400) % 4 === 0;
+			b.set(i, y + j, on ? GREY_D : GREY);
+		}
+	const nw = num[0].length;
+	const bx = numLeft ? 4 : FW - 6 - nw;
+	b.fillRect(bx - 1, y + 1, nw + 3, h - 2, P.cream);
+	b.sprite(num, S.solid(color), bx, y + Math.floor((h - num.length) / 2), { flip: !numLeft });
+}
+
 function tarotTrump(b: Bitmap, card: Card, color: Color) {
 	const pal = S.solid(color);
-	const tint: Color = [P.cream[0] + (color[0] - P.cream[0]) * 0.14, P.cream[1] + (color[1] - P.cream[1]) * 0.14, P.cream[2] + (color[2] - P.cream[2]) * 0.14, 1];
 	if (card.rank === cards.EXCUSE) {
-		ace2Ring(b);
+		// A jester's hat, three points with bells, over a star.
+		const hat = [hex('#c8323c'), hex('#2c5fa8'), hex('#e0a42a')];
+		b.fillPoly([24, 54, 56, 54, 52, 46, 28, 46], hex('#e0a42a'));
+		b.fillPoly([28, 47, 34, 47, 18, 22], hat[0]);
+		b.fillPoly([36, 47, 44, 47, 40, 18], hat[1]);
+		b.fillPoly([46, 47, 52, 47, 62, 22], hat[0]);
+		for (const [x, y] of [[18, 22], [40, 18], [62, 22]]) b.fillCircle(x, y, 2.5, SUN);
+		void hat;
 		const pts: number[] = [];
 		for (let i = 0; i < 10; i++) {
 			const a = -Math.PI / 2 + (i * Math.PI) / 5,
-				r = i % 2 === 0 ? 15 : 6.5;
-			pts.push(40 + Math.cos(a) * r, 57 + Math.sin(a) * r);
+				rr = i % 2 === 0 ? 13 : 5.5;
+			pts.push(40 + Math.cos(a) * rr, 74 + Math.sin(a) * rr);
 		}
 		b.fillPoly(pts, color);
 		b.sprite(STAR7, pal, 4, 5);
 		b.sprite(STAR7, pal, FW - 4 - 7, FH - 5 - 7, { flip: true });
 		return;
 	}
-	// The panel, edged in gold.
-	for (let y = 18; y < 96; y++) for (let x = 18; x < 62; x++) b.set(x, y, tint);
-	b.rect(18, 18, 44, 78, P.gold);
-	const oudler = card.rank === 1 || card.rank === 21;
-	if (oudler) ace2Ring(b, 18);
 	const num = numberSprite(card.rank);
-	const nw = num[0].length;
-	b.sprite(num, pal, Math.round(40 - nw / 2), 52);
-	b.sprite(STAR7, S.solid(oudler ? P.goldDeep : P.gold), 37, 26);
-	b.sprite(STAR7, S.solid(oudler ? P.goldDeep : P.gold), 37, 80, { flip: true });
-	// The index: the number with a star under it.
-	b.sprite(num, pal, 4, 5);
-	b.sprite(STAR7, pal, 4, 18);
-	const flipped = num.map((r) => [...r].reverse().join('')).reverse();
-	b.sprite(flipped, pal, FW - 4 - nw, FH - 5 - 11);
-	b.sprite(STAR7, pal, FW - 4 - 7, FH - 18 - 7, { flip: true });
+	const top = 3,
+		bandH = 14,
+		sy = top + bandH + 1,
+		sh = Math.floor((FH - 2 * (top + bandH + 1) - 1) / 2);
+	band(b, top, bandH, num, true, color);
+	band(b, FH - top - bandH, bandH, num, false, color);
+	// The scene, and its mirror below.
+	const sc = scene(card.rank, FW - 6, sh);
+	for (let y = 0; y < sh; y++)
+		for (let x = 0; x < FW - 6; x++) {
+			const c = sc.get(x, y);
+			if (!c) continue;
+			b.set(3 + x, sy + y, c);
+			b.set(FW - 4 - x, sy + 2 * sh - y, c);
+		}
+	b.fillRect(3, sy + sh, FW - 6, 1, P.ink);
+	if (card.rank === 1 || card.rank === 21) {
+		b.rect(2, 2, FW - 4, FH - 4, P.gold);
+		b.rect(3, sy - 1, FW - 6, 2 * sh + 3, P.goldLight);
+	}
 }
 
 /** The gold sunburst ring the aces sit in. */
