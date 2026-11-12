@@ -11,17 +11,23 @@ import type { WhistHand } from './rules.ts';
 
 export const seatName = (s: number) => cards.seatName(s, W.PLAYER);
 
-/** Expected tricks for a hand: each card's chance of beating three others. */
+/** Expected tricks for a hand: each card's chance of beating three cards
+ *  drawn from the ones this seat can't see (its own higher cards are no
+ *  threat). The Fool, if someone else has it, beats you about half the time
+ *  (they'll play it low as often as high). */
 export function expected(hand: Card[]): number {
+	const unseen = W.newDeck().filter((c) => !hand.some((x) => x.rank === c.rank && x.suit === c.suit));
+	const foolOut = unseen.some(W.isFool);
 	let n = 0;
 	for (const c of hand) {
 		if (W.isFool(c)) continue;
-		n += Math.pow(c.rank / 22, 3);
+		const higher = unseen.filter((u) => !W.isFool(u) && u.rank > c.rank).length + (foolOut ? 0.5 : 0);
+		n += Math.pow(1 - higher / unseen.length, 3);
 	}
 	return n;
 }
 
-/** The nearest allowed bid to what a seat would like. */
+/** The allowed bid nearest what a seat expects. */
 function allowed(h: WhistHand, seat: number, want: number): number {
 	const opts = Array.from({ length: h.size + 1 }, (_, i) => i).filter((b) => W.canBid(h, seat, b));
 	return opts.reduce((a, b) => (Math.abs(b - want) < Math.abs(a - want) ? b : a));
@@ -38,10 +44,11 @@ export function chooseBid(h: WhistHand, seat: number): number {
 		return allowed(h, seat, wins / pool.length > 0.5 ? 1 : 0);
 	}
 	const hand = h.hands[seat];
-	let want = Math.round(expected(hand));
-	// Holding the Fool, lean a trick higher: it can always win one.
-	if (hand.some(W.isFool) && expected(hand) % 1 > 0.25) want = Math.ceil(expected(hand));
-	return allowed(h, seat, Math.min(h.size, want));
+	// Holding the Fool, lean higher: it can always win one more (or duck one).
+	const raw = Math.min(h.size, expected(hand) + (hand.some(W.isFool) ? 0.35 : 0));
+	// The nearest allowed bid to that count: a dealer barred from 2 with 2.4
+	// expected bids 3; with 1.6, it bids 1.
+	return allowed(h, seat, raw);
 }
 
 export interface Move {
