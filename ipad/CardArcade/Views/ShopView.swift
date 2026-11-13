@@ -35,7 +35,7 @@ struct ShopView: View {
                 }
             }
             .frame(maxWidth: .infinity)
-            .frame(height: 270 + L.dy * 0.4)
+            .frame(height: 320 + L.dy * 0.3)
             .background(Rectangle().fill(RadialGradient(colors: [Theme.feltLight, Theme.feltEdge], center: .center, startRadius: 0, endRadius: 520))
                 .overlay(Rectangle().stroke(Theme.brassDim, lineWidth: 3))
                 .shadow(color: .black.opacity(0.35), radius: 0, x: 0, y: 6))
@@ -104,15 +104,16 @@ struct OwnedRelic: View {
             .padding(.horizontal, 10).frame(height: 20)
             .background(edge)
             HStack(alignment: .top, spacing: 10) {
-                Icon(key: relic.icon, scale: 2.6)
+                PixelImage(image: model.art.iconArt(relic.icon))
+                    .frame(width: 64, height: 64)
                     .modifier(EditionShine(edition: relic.edition?.key))
                     .saturation(jinxed ? 0 : 1)
-                    .padding(5)
+                    .padding(4)
                     .background(PixelRect(radius: 6).fill(edge.opacity(0.22)))
                     .overlay(PixelRect(radius: 6).stroke(edge.opacity(0.7), lineWidth: 2))
                 VStack(alignment: .leading, spacing: 3) {
                     Text(relic.name).font(Theme.font(16, .bold)).foregroundStyle(Theme.ink)
-                        .lineLimit(1).minimumScaleFactor(0.7)
+                        .lineLimit(2).minimumScaleFactor(0.8).fixedSize(horizontal: false, vertical: true)
                     Text(relic.text).font(Theme.font(12)).foregroundStyle(Theme.inkDim)
                         .lineLimit(4).minimumScaleFactor(0.85)
                         .fixedSize(horizontal: false, vertical: true)
@@ -182,23 +183,28 @@ struct Ware: View {
                 .padding(.horizontal, 22).padding(.vertical, 4)
                 .frame(maxWidth: .infinity)
                 .background(bundle ? Theme.brass : edge)
-            Spacer(minLength: 0)
-            Group {
-                if let s = item.seal { SealBadge(seal: s, size: 64) }
+            // The item's picture fills the card, edge to edge.
+            ZStack {
+                if item.kind == "relic" { RelicBurst(color: edge, rays: 8 + 2 * (item.rarity ?? 1)).frame(width: 180, height: 180) }
+                if let s = item.seal { SealBadge(seal: s, size: 128) }
                 else if let e = item.cardEdition, let sample = model.view?.pack.first(where: { $0.rank == 14 }) ?? model.view?.pack.first {
-                    PixelImage(image: model.art.card(sample, fourColor: model.fourColor)).frame(width: 54, height: 76)
+                    PixelImage(image: model.art.card(sample, fourColor: model.fourColor)).frame(width: 96, height: 134)
                         .modifier(EditionShine(edition: e))
+                        .shadow(color: .black.opacity(0.3), radius: 0, x: 3, y: 4)
                 }
                 else if let g = item.glyph, item.kind == "upgrade" {
-                    Text(g).font(.system(size: 54, weight: .bold)).foregroundStyle(Self.ink)
+                    Text(g).font(.system(size: 118, weight: .heavy)).foregroundStyle(Self.ink)
+                        .minimumScaleFactor(0.4).lineLimit(1)
                 }
-                else if let i = item.icon { Icon(key: i, scale: 4).modifier(EditionShine(edition: item.edition?.key)) }
+                else if let i = item.icon {
+                    PixelImage(image: model.art.iconArt(i))
+                        .frame(width: 144, height: 144)
+                        .modifier(EditionShine(edition: item.edition?.key))
+                        .shadow(color: .black.opacity(0.25), radius: 0, x: 4, y: 4)
+                }
             }
-            .background {
-                // A relic sits in a burst of its rarity's color.
-                if item.kind == "relic" { RelicBurst(color: edge, rays: 8 + 2 * (item.rarity ?? 1)).frame(width: 130, height: 130) }
-            }
-            Spacer(minLength: 0)
+            .frame(width: 176, height: 160)
+            .clipped()
             if item.kind == "relic", let r = item.rarityName {
                 HStack(spacing: 4) {
                     ForEach(0..<max(1, item.rarity ?? 1), id: \.self) { _ in
@@ -213,7 +219,7 @@ struct Ware: View {
                 .padding(.horizontal, 10).padding(.bottom, 12)
                 .shadow(color: bundle ? .black.opacity(0.6) : .clear, radius: 0, x: 2, y: 2)
         }
-        .frame(width: 150, height: 210)
+        .frame(width: 176, height: 262)
         .clipShape(PixelRect(radius: 10)) // the banner follows the corners
         .background {
             ZStack {
@@ -258,7 +264,7 @@ struct Ware: View {
                 ShopItemInfo(item: item, buy: buy)
                     .frame(width: 280)
                     .fixedSize(horizontal: false, vertical: true)
-                    .offset(y: 222)
+                    .offset(y: 274)
                     .transition(.opacity)
             }
         }

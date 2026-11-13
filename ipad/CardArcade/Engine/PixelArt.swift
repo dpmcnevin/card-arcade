@@ -19,6 +19,8 @@ final class PixelArt {
 
     /// A card back; each starting deck has its own.
     func back(_ deck: String = "standard") -> CGImage? { image("back|\(deck)") { engine.pixels("backImage", [deck]) } }
+    /// An icon's art without its tile, to draw it large.
+    func iconArt(_ key: String) -> CGImage? { image("art|\(key)") { engine.pixels("iconArt", [key]) } }
     func icon(_ key: String) -> CGImage? { image("icon|\(key)") { engine.pixels("iconImage", [key]) } }
     func seal(_ s: SealV) -> CGImage? { image("seal|\(s.glyph)|\(s.color)") { engine.pixels("sealImage", [s.glyph, s.color]) } }
 

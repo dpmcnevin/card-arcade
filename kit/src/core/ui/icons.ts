@@ -375,3 +375,12 @@ export function bitmap(key: string): Bitmap {
 	b.sprite(rows, P, 1, 1);
 	return b;
 }
+
+/** The icon's art alone, 16x16 on a clear ground (no tile): for drawing an
+ *  icon large, where it fills a card on its own (the iPad club). */
+export function artBitmap(key: string): Bitmap {
+	const rows = ICONS[key] ?? EXPANSION_ICONS[key] ?? FALLBACK;
+	const b = newBitmap(SIZE, SIZE);
+	b.sprite(rows, PALETTE, 0, 0);
+	return b;
+}

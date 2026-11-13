@@ -48,7 +48,8 @@ struct BundleView: View {
                     PixelImage(image: model.art.card(card, fourColor: model.fourColor)).frame(width: 80, height: 112)
                         .modifier(EditionShine(edition: c.cardEdition))
                 } else if let icon = c.icon {
-                    Icon(key: icon, scale: 4).modifier(EditionShine(edition: c.edition?.key))
+                    PixelImage(image: model.art.iconArt(icon)).frame(width: 112, height: 112)
+                        .modifier(EditionShine(edition: c.edition?.key))
                 }
                 Spacer()
             }

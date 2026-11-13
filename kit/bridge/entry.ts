@@ -18,7 +18,7 @@ import { apply, replay, undo, type Action, type Save } from '../src/run/save.ts'
 import { buildLog } from '../src/run/gamelog.ts';
 import * as profileLib from '../src/run/profile.ts';
 import { faceBitmap, backBitmap } from '../src/core/ui/pixelcards.ts';
-import { bitmap as iconBitmap } from '../src/core/ui/icons.ts';
+import { bitmap as iconBitmap, artBitmap } from '../src/core/ui/icons.ts';
 import { sealBitmap } from '../src/core/ui/sealart.ts';
 import { toRGBA, type Bitmap } from '../src/core/ui/pixel.ts';
 import type { GameView, TableView } from '../src/view/types.ts';
@@ -389,6 +389,8 @@ const api = {
 	cardImage: (suit: number, rank: number, trump: boolean, fourColor: boolean) => image(faceBitmap({ suit, rank }, trump, fourColor)),
 	backImage: (deck?: string) => image(backBitmap(deck)),
 	iconImage: (key: string) => image(iconBitmap(key)),
+	/** An icon's art alone, without its tile (to draw it large). */
+	iconArt: (key: string) => image(artBitmap(key)),
 	sealImage: (glyph: string, color: string) => image(sealBitmap(glyph, color))
 };
 
