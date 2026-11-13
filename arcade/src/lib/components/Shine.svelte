@@ -55,10 +55,14 @@
 	.shine.prismatic::before {
 		content: '';
 		position: absolute;
-		left: -60%;
-		top: -60%;
-		width: 220%;
-		height: 220%;
+		/* A square wheel centered on the card, wider than its diagonal (a
+		   card is 80x112: diagonal 1.72x its width), so turning it never
+		   uncovers a corner. */
+		left: 50%;
+		top: 50%;
+		width: 240%;
+		aspect-ratio: 1;
+		transform: translate(-50%, -50%);
 		pointer-events: none;
 		z-index: 1;
 		background: conic-gradient(red, orange, yellow, lime, cyan, blue, violet, red);
@@ -83,8 +87,11 @@
 		}
 	}
 	@keyframes turn {
+		from {
+			transform: translate(-50%, -50%) rotate(0deg);
+		}
 		to {
-			transform: rotate(360deg);
+			transform: translate(-50%, -50%) rotate(360deg);
 		}
 	}
 	/* Stepped: the shine jumps a pixel-art step at a time (a dozen frames a
