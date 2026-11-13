@@ -91,17 +91,19 @@ struct MenuView: View {
                         .font(Theme.font(14)).foregroundStyle(Theme.inkFaint)
                     Spacer(minLength: 0)
                     HStack(spacing: 10) {
+                        // Four buttons in the 560-wide column: 530 plus the gaps.
                         if saved {
-                            GameButton("Continue", pulse: true) { model.start(g.id, resume: true) }.frame(width: 170)
-                            GameButton("New run", style: .plain) { model.start(g.id, resume: false) }.frame(width: 150)
+                            GameButton("Continue", pulse: true) { model.start(g.id, resume: true) }.frame(width: 140)
+                            GameButton("New run", style: .plain) { model.start(g.id, resume: false) }.frame(width: 120)
                         } else {
-                            GameButton("New run", pulse: true) { model.start(g.id, resume: false) }.frame(width: 170)
+                            GameButton("New run", pulse: true) { model.start(g.id, resume: false) }.frame(width: 140)
                         }
-                        GameButton("How to play", style: .plain) { model.showHelp = true }.frame(width: 150)
-                        GameButton("Collection", style: .plain) { model.showCollection = true }.frame(width: 150)
+                        GameButton("How to play", style: .plain) { model.showHelp = true }.frame(width: 140)
+                        GameButton("Collection", style: .plain) { model.showCollection = true }.frame(width: 130)
                     }
                 }
                 .frame(width: 560, alignment: .leading)
+                .clipped()
                 VStack(alignment: .leading, spacing: 8) {
                     Text("Starting deck\(saved ? " (for a new run)" : "")").font(Theme.font(15)).foregroundStyle(Theme.inkDim)
                     LazyVGrid(columns: Array(repeating: GridItem(.fixed(108), spacing: 8), count: 4), alignment: .leading, spacing: 8) {
