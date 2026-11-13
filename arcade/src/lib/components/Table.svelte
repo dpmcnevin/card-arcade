@@ -4,6 +4,7 @@
      be sorted, dragged into any order, or a card dragged onto the table to
      play it. -->
 <script lang="ts">
+	import { debug } from '../debug.svelte.ts';
 	import { arcade } from '../app.svelte.ts';
 	import * as cards from '$kit/src/core/rules/cards.ts';
 	import * as R from '$kit/src/run/run.ts';
@@ -207,7 +208,7 @@
 					const k = key(c);
 					const legal = view.legal.has(k) && seat.playable;
 					out.push({
-						k, card: c, up: seat.faceUp, x: x0 + i * gap, y: L.northY + (seat.faceUp ? 14 : 0), s, z: 5 + i, order: n0 + i,
+						k, card: c, up: seat.faceUp || debug.peek, x: x0 + i * gap, y: L.northY + (seat.faceUp ? 14 : 0), s, z: 5 + i, order: n0 + i,
 						dim: seat.playable && view.legal.size > 0 && !legal,
 						click: legal && !arcade.busy ? () => arcade.game({ t: 'play', card: cards.code(c) }) : undefined
 					});
@@ -217,7 +218,7 @@
 				// A big hand (Tarot's eighteen) packs tighter to stay clear of the name.
 				const step = n > 1 ? Math.min(16, 230 / (n - 1)) : 0;
 				const y0 = CY - (step * (n - 1)) / 2;
-				seat.cards.forEach((c, i) => out.push({ k: key(c), card: c, up: seat.faceUp, x, y: y0 + i * step, s: seat.faceUp ? 0.8 : 0.55, z: 5 + i, order: n0 + i }));
+				seat.cards.forEach((c, i) => out.push({ k: key(c), card: c, up: seat.faceUp || debug.peek, x, y: y0 + i * step, s: seat.faceUp ? 0.8 : 0.55, z: 5 + i, order: n0 + i }));
 			}
 			n0 += n;
 		}

@@ -54,6 +54,7 @@ export function buildLog(module: GameModule, save: Save): string {
 			out.push(`   took ${!o ? 'nothing' : o.kind === 'edition' ? `${o.edition} on card ${o.cardId}` : o.def.name}`);
 		} else if (a.t === 'sell') out.push(`   sold ${run.relics[a.slot]?.name ?? '?'}`);
 		else if (a.t === 'reroll') out.push(`   reroll $${run.rerollCost}`);
+		else if (a.t === 'debug') out.push(`   DEBUG ${a.op}${'n' in a ? ` ${a.n}` : ''}${'key' in a ? ` ${a.key}` : ''}`);
 		apply(run, a);
 		if (run.phase === R.PHASE.SCORED && before !== R.PHASE.SCORED && run.result) {
 			const desc = module.describeHand?.(run);

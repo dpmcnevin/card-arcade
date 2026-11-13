@@ -68,3 +68,27 @@ for (const [m, v] of GAMES) {
 		if (m !== hearts || prompts) assert.ok(prompts > 0, `${m.id}: prompts were seen`);
 	});
 }
+
+test('debug actions are recorded and replay to the same run', async () => {
+	const { replay } = await import('../src/run/save.ts');
+	const run = R.newRun(hearts, 'DEBUG-1');
+	const save = { version: 1, game: 'hearts', seed: 'DEBUG-1', actions: [] };
+	const go = (a) => {
+		const r = apply(run, a);
+		if (!(Array.isArray(r) && r[0] === false)) save.actions.push(a);
+		return r;
+	};
+	go({ t: 'debug', op: 'money', n: 100 });
+	go({ t: 'debug', op: 'relic', key: hearts.relics[0].key });
+	go({ t: 'debug', op: 'ploy', key: 'windfall' });
+	go({ t: 'debug', op: 'hand' });
+	go({ t: 'debug', op: 'win' });
+	assert.equal(run.phase, R.PHASE.WON);
+	assert.equal(run.ext.debugged, true);
+	assert.deepEqual(go({ t: 'debug', op: 'relic', key: 'nope' }), [false, 'no such relic']);
+	const again = replay(hearts, save);
+	assert.equal(again.money, run.money);
+	assert.equal(again.phase, run.phase);
+	assert.equal(again.relics.length, 1);
+	assert.deepEqual(again.ploys, ['windfall']);
+});

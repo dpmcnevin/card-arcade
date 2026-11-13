@@ -17,7 +17,9 @@ export type Action =
 	| { t: 'leave' }
 	| { t: 'ploy'; slot: number }
 	/** An Undo spent: the play it took back is gone from the save. */
-	| { t: 'drop'; key: string };
+	| { t: 'drop'; key: string }
+	/** A debug cheat (R.debug). */
+	| ({ t: 'debug' } & R.DebugOp);
 
 export interface Save {
 	version: 1;
@@ -52,6 +54,8 @@ export function apply(run: Run, a: Action) {
 			return R.leaveShop(run);
 		case 'ploy':
 			return R.usePloy(run, a.slot);
+		case 'debug':
+			return R.debug(run, a);
 		case 'drop': {
 			const i = run.ploys.indexOf(a.key);
 			if (i >= 0) run.ploys.splice(i, 1);

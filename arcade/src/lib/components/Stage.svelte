@@ -20,6 +20,9 @@
 	import { fx } from '../fx.svelte.ts';
 	import { layoutFor, cssVars } from '../layout.ts';
 	import { settings } from '../settings.svelte.ts';
+	import { debug } from '../debug.svelte.ts';
+	import DebugMenu from './DebugMenu.svelte';
+	import FpsMeter from './FpsMeter.svelte';
 
 	let { only }: { only?: string } = $props();
 	let w = $state(1280),
@@ -41,8 +44,10 @@
 
 	function onKey(e: KeyboardEvent) {
 		sound.unlock();
-		if ((e.target as HTMLElement)?.tagName === 'INPUT') return;
+		const tag = (e.target as HTMLElement)?.tagName;
+		if (tag === 'INPUT' || tag === 'SELECT') return;
 		const k = e.key.toLowerCase();
+		if (debug.key(k)) return;
 		// The board overview that opens each board: Escape, Space or Enter start it.
 		const overview = fresh && arcade.seen !== boardKey && arcade.overlay !== 'table';
 		if (k === ' ' || k === 'enter') {
@@ -50,7 +55,8 @@
 			if (overview) arcade.seen = boardKey;
 			else arcade.advance();
 		} else if (k === 'escape') {
-			if (overview) arcade.seen = boardKey;
+			if (debug.open) debug.open = false;
+			else if (overview) arcade.seen = boardKey;
 			else arcade.escape();
 		}
 		else if (k === 'm') sound.toggleMusic();
@@ -85,7 +91,7 @@
 			{/if}
 		{/if}
 	</div>
-	<div class="stage" class:smooth={!settings.pixel} class:stepped={settings.stepped} class:portrait={L.portrait} style="{cssVars(L)}; width: {L.W}px; height: {L.H}px" style:transform="scale({scale}) translate({fx.shakeX}px, {fx.shakeY}px)">
+	<div class="stage" class:smooth={!settings.pixel} class:stepped={settings.stepped} class:no-idle={debug.noIdle} class:no-anim={debug.noAnim} class:portrait={L.portrait} style="{cssVars(L)}; width: {L.W}px; height: {L.H}px" style:transform="scale({scale}) translate({fx.shakeX}px, {fx.shakeY}px)">
 		{#if arcade.screen === 'menu' || !run || !ui}
 			<Menu {only} />
 		{:else}
@@ -117,6 +123,8 @@
 		{/if}
 		{#if arcade.toast}<div class="toast {arcade.toastTone ?? ''}">{arcade.toast}</div>{/if}
 		<Particles w={L.W} h={L.H} {scale} />
+		{#if debug.open}<DebugMenu />{/if}
+		{#if debug.fps}<FpsMeter />{/if}
 	</div>
 </div>
 
@@ -227,5 +235,19 @@
 			transform: translate(-50%, -12px);
 			opacity: 0;
 		}
+	}
+	/* Debug: idle motion off (swaying cards, floating wares, bobbing buttons). */
+	.stage.no-idle :global(.wob),
+	.stage.no-idle :global(.sway.idle),
+	.stage.no-idle :global(.item),
+	.stage.no-idle :global(.pulse) {
+		animation: none !important;
+	}
+	/* Debug: every animation and transition off. */
+	.stage.no-anim :global(*),
+	.stage.no-anim :global(*::before),
+	.stage.no-anim :global(*::after) {
+		animation: none !important;
+		transition: none !important;
 	}
 </style>

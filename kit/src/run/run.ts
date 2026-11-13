@@ -692,6 +692,42 @@ export function interest(run: Run): number {
 	return Math.min(cap, Math.floor(run.money / INTEREST_PER));
 }
 
+/** A debug cheat (the web arcade's debug menu), recorded in the save like
+ *  any action so a run still replays exactly. Marks the run as debugged.
+ *  Returns false if it can't apply now. */
+export type DebugOp = { op: 'money'; n: number } | { op: 'hand' } | { op: 'win' } | { op: 'relic'; key: string } | { op: 'ploy'; key: string };
+export function debug(run: Run, d: DebugOp): [boolean, string?] {
+	const live = run.phase === PHASE.PRE || run.phase === PHASE.PLAY || run.phase === PHASE.SCORED;
+	switch (d.op) {
+		case 'money':
+			run.money = Math.max(0, run.money + d.n);
+			break;
+		case 'hand':
+			if (!live) return [false, 'not during a board'];
+			run.handsLeft++;
+			break;
+		case 'win':
+			if (!live) return [false, 'not during a board'];
+			run.score = Math.max(run.score, run.target);
+			winBoard(run);
+			break;
+		case 'relic': {
+			const def = run.module.relics.find((r) => r.key === d.key);
+			if (!def) return [false, 'no such relic'];
+			run.relics.push(instantiate(def));
+			break;
+		}
+		case 'ploy': {
+			if (!ployDef(run, d.key)) return [false, 'no such ploy'];
+			if (run.ploys.length >= PLOY_SLOTS) return [false, 'no ploy slot'];
+			run.ploys.push(d.key);
+			break;
+		}
+	}
+	run.ext.debugged = true;
+	return [true];
+}
+
 function winBoard(run: Run) {
 	let relics = 0;
 	for (const r of run.relics) relics += r.def.onBoardWin?.(r as never, run)?.money ?? 0;

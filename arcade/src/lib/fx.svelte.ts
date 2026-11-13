@@ -30,6 +30,8 @@ class Fx {
 	/** Starts the frame loop (Particles.svelte sets it). The loop runs only
 	 *  while there's confetti or shake, so an idle page draws nothing. */
 	wake: () => void = () => {};
+	/** Debug switches: no confetti, no shake. */
+	off = { confetti: false, shake: false };
 	/** Anything left to animate? */
 	get busy() {
 		return this.particles.length > 0 || this.shakeAmount >= 0.1 || this.shakeX !== 0 || this.shakeY !== 0;
@@ -40,6 +42,7 @@ class Fx {
 
 	/** A burst of confetti-like particles at stage coordinates. */
 	burst(x: number, y: number, count: number, colors: Color[], speed = 260, opts: BurstOpts = {}) {
+		if (this.off.confetti) return;
 		const rnd = Math.random;
 		for (let i = 0; i < count; i++) {
 			const a = rnd() * Math.PI * 2;
@@ -62,6 +65,7 @@ class Fx {
 	}
 
 	shake(amount: number) {
+		if (this.off.shake) return;
 		this.shakeAmount = Math.max(this.shakeAmount, amount);
 		this.wake();
 	}

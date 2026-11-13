@@ -12,8 +12,7 @@ class Settings {
 	/** Pixel-art cards, or smooth ones. */
 	pixel = $state(true);
 	/** Edition shine moves in pixel steps: a debug option that degrades the
-	 *  animation to save CPU (add ?debug=stepped-shine to the address; not
-	 *  saved). Smooth by default. */
+	 *  animation to save CPU (set by the debug menu). Smooth by default. */
 	stepped = $state(false);
 
 	constructor() {
@@ -24,9 +23,6 @@ class Settings {
 			if (typeof s.speed === 'number') this.speed = s.speed;
 			if (typeof s.fourColor === 'boolean') this.fourColor = s.fourColor;
 			if (typeof s.pixel === 'boolean') this.pixel = s.pixel;
-		} catch {}
-		try {
-			if (new URLSearchParams(location.search).getAll('debug').some((d) => d.split(',').includes('stepped-shine'))) this.stepped = true;
 		} catch {}
 	}
 
