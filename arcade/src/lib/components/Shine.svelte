@@ -1,5 +1,5 @@
 <!-- The look of a relic edition over whatever it wraps (usually an icon):
-     an engraved silver sheen, a red gloss, a turning rainbow, or a pale
+     an engraved silver sheen, a red gloss, a drifting rainbow foil, or a pale
      see-through ghost for Phantom. -->
 <script lang="ts">
 	import type { Snippet } from 'svelte';
@@ -50,27 +50,27 @@
 		background: rgba(232, 87, 63, 0.3);
 		mix-blend-mode: overlay;
 	}
-	/* The rainbow turns by rotating an oversized wheel (a transform), not by
-	   animating a filter, which would repaint it every frame. */
+	/* Rainbow foil: diagonal bands of color drifting across the card, like a
+	   holographic sheen (no center to spin around). The bands repeat every
+	   90px along their slant, so sliding the layer sideways by one repeat
+	   (90px / sin 110deg = 95.78px) loops seamlessly; it's a transform, so the
+	   GPU moves it without repainting. */
 	.shine.prismatic::before {
 		content: '';
 		position: absolute;
-		/* A square wheel centered on the card, wider than its diagonal (a
-		   card is 80x112: diagonal 1.72x its width), so turning it never
-		   uncovers a corner. */
-		left: 50%;
-		top: 50%;
-		width: 240%;
-		aspect-ratio: 1;
-		transform: translate(-50%, -50%);
+		left: 0;
+		top: 0;
+		bottom: 0;
+		width: calc(100% + 96px);
 		pointer-events: none;
 		z-index: 1;
-		background: conic-gradient(red, orange, yellow, lime, cyan, blue, violet, red);
+		background: repeating-linear-gradient(110deg, #ff4d4d 0, #ffa64d 15px, #fff24d 30px, #66ff66 45px, #4dd2ff 60px, #8c66ff 75px, #ff4d4d 90px);
 		opacity: 0.6;
 		mix-blend-mode: overlay;
-		animation: turn 3s linear infinite;
+		animation: foil 2.6s linear infinite;
 		will-change: transform;
 	}
+
 	.shine.phantom {
 		opacity: 0.6;
 		filter: saturate(0.15) drop-shadow(2px 2px 0 #9fb0ff);
@@ -86,12 +86,12 @@
 			transform: translate(34%, 34%);
 		}
 	}
-	@keyframes turn {
+	@keyframes foil {
 		from {
-			transform: translate(-50%, -50%) rotate(0deg);
+			transform: translateX(0);
 		}
 		to {
-			transform: translate(-50%, -50%) rotate(360deg);
+			transform: translateX(-95.78px);
 		}
 	}
 	/* Stepped: the shine jumps a pixel-art step at a time (a dozen frames a
