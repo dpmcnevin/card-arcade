@@ -1,0 +1,95 @@
+name: CardArcade
+options:
+  bundleIdPrefix: net.corrupt
+  deploymentTarget:
+    iOS: "27.0"
+  createIntermediateGroups: true
+
+# Tells Xcode the project is already on its recommended settings (it's
+# regenerated, so an update made in Xcode would be lost anyway).
+attributes:
+  LastUpgradeCheck: "2720"
+
+settings:
+  base:
+    DEVELOPMENT_TEAM: 225QC53X87
+    CODE_SIGN_STYLE: Automatic
+    # The pre-build step reads the kit from beside this folder, so it can't
+    # run sandboxed.
+    ENABLE_USER_SCRIPT_SANDBOXING: false
+    STRING_CATALOG_GENERATE_SYMBOLS: true
+    ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS: true
+
+targets:
+  CardArcade:
+    type: application
+    platform: iOS
+    info:
+      path: CardArcade/Info.plist
+      properties:
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        UILaunchScreen:
+          UIColorName: LaunchBackground
+        UIAppFonts:
+          - Fonts/Jersey10-Regular.ttf
+    sources:
+      - path: CardArcade
+        excludes:
+          - "Resources/**"
+      # Made by the pre-build step, so they may not exist yet when the
+      # project is generated: listed by name rather than by scanning.
+      - path: CardArcade/Resources/game-bundle.js
+        optional: true
+        buildPhase: resources
+      - path: CardArcade/Resources/engine-version.txt
+        optional: true
+        buildPhase: resources
+      - path: CardArcade/Resources/Audio
+        type: folder
+        optional: true
+        buildPhase: resources
+      # The pixel font (Jersey 10, SIL Open Font License; see Fonts/OFL.txt).
+      - path: CardArcade/Resources/Fonts
+        type: folder
+        buildPhase: resources
+    settings:
+      base:
+        PRODUCT_NAME: Card Arcade
+        PRODUCT_BUNDLE_IDENTIFIER: net.corrupt.card-arcade
+        TARGETED_DEVICE_FAMILY: "2" # iPad
+        SUPPORTS_MACCATALYST: false
+        SWIFT_VERSION: "6.0"
+        # Landscape only, full screen: no Split View or Slide Over.
+        INFOPLIST_KEY_UISupportedInterfaceOrientations: "UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight"
+        INFOPLIST_KEY_UISupportedInterfaceOrientations~ipad: "UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight"
+        INFOPLIST_KEY_UIRequiresFullScreen: true
+        INFOPLIST_KEY_UIStatusBarHidden: true
+        INFOPLIST_KEY_UIViewControllerBasedStatusBarAppearance: false
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        INFOPLIST_KEY_CFBundleDisplayName: Card Arcade
+        INFOPLIST_KEY_LSApplicationCategoryType: public.app-category.card-games
+        GENERATE_INFOPLIST_FILE: true
+        MARKETING_VERSION: "0.1.0"
+        CURRENT_PROJECT_VERSION: "1"
+    preBuildScripts:
+      - name: "Build the kit bundle and audio"
+        script: |
+          set -e
+          # Xcode's build PATH omits Homebrew and nvm; add the usual places.
+          export PATH="/opt/homebrew/bin:/usr/local/bin:$HOME/.npm-global/bin:$PATH"
+          if [ -s "$HOME/.nvm/nvm.sh" ]; then . "$HOME/.nvm/nvm.sh" >/dev/null 2>&1 || true; fi
+          # The kit lives beside this app in the same repo (../kit).
+          ROOT="$SRCROOT/.."
+          RES="$SRCROOT/CardArcade/Resources"
+          cd "$ROOT"
+          [ -d node_modules ] || npm install --silent
+          BRIDGE_OUT="$RES/game-bundle.js" npm run --silent -w kit build:bridge
+          # Which commit this build used (shown on the menu).
+          git -C "$ROOT" describe --always --dirty --abbrev=7 > "$RES/engine-version.txt" 2>/dev/null || echo unknown > "$RES/engine-version.txt"
+          # The audio takes a while to render; only when missing.
+          if [ ! -f "$RES/Audio/music.json" ]; then node kit/tools/render-audio.ts "$RES/Audio" 4; fi
+        basedOnDependencyAnalysis: false
+        outputFiles:
+          - $(SRCROOT)/CardArcade/Resources/game-bundle.js
+          - $(SRCROOT)/CardArcade/Resources/engine-version.txt

@@ -75,7 +75,7 @@ function cardView(c: Card, tv?: TableView) {
 	const r = run!;
 	const m = R.mod(r, c);
 	const trump = tv ? (tv.isTrump ? tv.isTrump(c) : tv.trump !== undefined && c.suit === tv.trump) : false;
-	return { id: c.id ?? 0, suit: c.suit, rank: c.rank, code: cards.code(c), key: cardKey(c), name: cards.name(c), edition: m.edition ?? null, seal: sealView(R.sealOf(r, c)), trump };
+	return { id: c.id ?? 0, suit: c.suit, rank: c.rank, code: cards.code(c), key: cardKey(c), name: cards.name(c), edition: m.edition ?? null, seal: sealView(R.sealOf(r, c)), trump, suitOrder: cards.suitRank(c.suit), rankOrder: ui?.rankOrder?.(c) ?? c.rank };
 }
 
 function relicEdition(key: C.RelicEditionKey | undefined) {
