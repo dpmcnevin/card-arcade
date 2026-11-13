@@ -27,8 +27,11 @@ test('card editions score when you play the card; seals pay and wear off nothing
 	const run = R.newRun(hearts, 'ED');
 	for (const c of run.pack) R.setMod(run, c, { edition: 'etched', seal: 'gilded' });
 	playHand(run);
-	const lines = run.result.lines.map((l) => l.label);
-	assert.equal(lines.filter((l) => l.startsWith('Etched ')).length, 13, 'one per card you played');
+	// One line for the edition, summed over the 13 cards you played.
+	const etched = run.result.lines.filter((l) => l.label.startsWith('Etched '));
+	assert.equal(etched.length, 1, 'one line per edition');
+	assert.equal(etched[0].label, 'Etched x13');
+	assert.equal(etched[0].chips, 13 * 15);
 	assert.ok(run.result.money > 0 || run.result.lines.every((l) => !l.label.startsWith('Gilded')), 'gilded pays on tricks you win');
 });
 

@@ -168,7 +168,7 @@
 >
 	{#snippet frontFace()}
 		<div class="face front" class:ed={!!edition} style:--glow={edition ? editionColor(edition) : 'transparent'}>
-			<Shine {edition}><img src={front} alt="" draggable="false" /></Shine>
+			<Shine {edition} quiet={dim}><img src={front} alt="" draggable="false" /></Shine>
 			{#if seal}<span class="seal"><SealBadge {seal} size={Math.round(22 * pos.current.s)} /></span>{/if}
 			{#if dim}<div class="dim"></div>{/if}
 			{#if highlight}<div class="ring" style:border-color={highlight}></div>{/if}
@@ -290,7 +290,7 @@
 		position: absolute;
 		inset: 0;
 		border-radius: inherit;
-		background: rgba(15, 25, 23, 0.5);
+		background: rgba(15, 25, 23, 0.4);
 	}
 	.ring {
 		position: absolute;

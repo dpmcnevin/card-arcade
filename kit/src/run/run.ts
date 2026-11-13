@@ -669,13 +669,28 @@ export function pipeline<S>(run: Run, base: BaseScore<S>): Breakdown {
 		const ed = relic.edition && C.RELIC_EDITIONS[relic.edition];
 		if (ed?.effect) add(`${ed.name} ${relic.name}`, ed.effect, ed.key);
 	}
+	// Card editions, one line per edition (a Wild Deck plays a dozen at once):
+	// "Etched Q♣", or "Etched x5" with the effects summed (x mult multiplied).
+	const byEdition = new Map<string, { name: string; n: number; card: string; e: Required<Pick<Effect, 'chips' | 'mult' | 'xmult' | 'money'>> }>();
 	for (const p of base.played ?? []) {
 		const m = mod(run, p.card);
 		const ced = m.edition && C.CARD_EDITIONS[m.edition];
-		if (ced && p.mine) add(`${ced.name} ${cards.name(p.card)}`, ced.play ? ced.play(p, run) : ced.effect, ced.key);
+		if (ced && p.mine) {
+			const e = ced.play ? ced.play(p, run) : ced.effect;
+			if (e && (e.chips || e.points || e.mult || e.money || (e.xmult && e.xmult !== 1))) {
+				const g = byEdition.get(ced.key) ?? { name: ced.name, n: 0, card: cards.name(p.card), e: { chips: 0, mult: 0, xmult: 1, money: 0 } };
+				g.n++;
+				g.e.chips += e.chips ?? e.points ?? 0;
+				g.e.mult += e.mult ?? 0;
+				g.e.xmult *= e.xmult ?? 1;
+				g.e.money += e.money ?? 0;
+				byEdition.set(ced.key, g);
+			}
+		}
 		const seal = sealOf(run, p.card);
 		if (seal?.onPlayed) add(`${seal.name.replace(' Seal', '')} ${cards.name(p.card)}`, seal.onPlayed(p, run));
 	}
+	for (const [key, g] of byEdition) add(g.n > 1 ? `${g.name} x${g.n}` : `${g.name} ${g.card}`, { chips: g.e.chips, mult: g.e.mult, xmult: g.e.xmult === 1 ? undefined : g.e.xmult, money: g.e.money }, key);
 	if (bossActive(run)) {
 		const l = run.boss!.score?.(base.ctx as never, run);
 		if (l) add(l.label, l);

@@ -25,8 +25,10 @@ struct CardView: View {
     private var front: AnyView {
         AnyView(
             ZStack(alignment: .topLeading) {
+                // A dimmed card (can't be played now) drops its edition's
+                // effect, so the card underneath reads; its tag still shows it.
                 PixelImage(image: card.flatMap { model.art.card($0, trump: $0.trump, fourColor: model.fourColor) })
-                    .modifier(EditionShine(edition: card?.edition))
+                    .modifier(EditionShine(edition: dim ? nil : card?.edition))
                 if let e = card?.edition {
                     Rectangle().fill(Edition.color(e)).frame(width: 18, height: 6)
                         .shadow(color: .black.opacity(0.4), radius: 0, x: 0, y: 2)
