@@ -179,7 +179,7 @@ function view() {
 			const b = i + 1;
 			const boss = b === m.boardsPerTable ? r.boss : null;
 			const t = !boss && r.tagOffers[b - 1] ? C.TAGS[r.tagOffers[b - 1]] : null;
-			return { board: b, name: m.boardName?.({ ...r, board: b }) ?? `Board ${b}`, goal: R.goalFor(m, r.table, b), hands: boss?.hands ?? m.handsPerBoard, reward: R.MONEY_PER_BOARD + (boss ? R.BOSS_BONUS : 0), boss: boss ? { name: boss.name, text: boss.text } : null, tag: t ? { key: t.key, name: t.name, text: t.text, icon: t.icon } : null };
+			return { board: b, name: m.boardName?.({ ...r, board: b }) ?? `Board ${b}`, goal: R.boardGoal(r, b), hands: boss?.hands ?? m.handsPerBoard, reward: R.MONEY_PER_BOARD + (boss ? R.BOSS_BONUS : 0), boss: boss ? { name: boss.name, text: boss.text } : null, tag: t ? { key: t.key, name: t.name, text: t.text, icon: t.icon } : null };
 		}),
 		skipTag: (() => {
 			const t = R.skipTag(r);

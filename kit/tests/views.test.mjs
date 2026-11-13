@@ -114,3 +114,14 @@ test('the animated card editions score as they say', async () => {
 	const total = Object.values(C.CARD_EDITIONS).reduce((n, e) => n + e.weight, 0);
 	assert.ok(Math.abs(total - 1) < 1e-9, 'edition weights add to 1');
 });
+
+test('the Wild Deck: every card enhanced, no x mult editions, higher goals', async () => {
+	const C = await import('../src/run/content.ts');
+	for (const [m, scale] of [[hearts, 3.5], [whist22, 1.25]]) {
+		const run = R.newRun(m, 'WILD-1', { deck: 'wild' });
+		const plain = R.newRun(m, 'WILD-1', { deck: 'basic' });
+		assert.ok(run.pack.every((c) => R.mod(run, c).edition), `${m.id}: every card has an edition`);
+		assert.ok(run.pack.every((c) => !C.CARD_EDITIONS[R.mod(run, c).edition].effect.xmult && R.mod(run, c).edition !== 'molten'), `${m.id}: no x mult editions`);
+		assert.equal(run.target, Math.round(plain.target * scale), `${m.id}: the goal is x${scale}`);
+	}
+});

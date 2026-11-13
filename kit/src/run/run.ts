@@ -391,6 +391,9 @@ export const GENERIC_PLOYS: PloyDef[] = [
 	}
 ];
 
+/** How much higher the Wild Deck's goals are, per game. */
+const WILD_GOALS: Record<string, number> = { hearts: 3.5, bridge: 1.5, euchre: 2, tarot: 3.5, whist22: 1.25 };
+
 /** Starting decks every game gets (a game adds its own). */
 export const GENERIC_DECKS: DeckDef[] = [
 	{
@@ -402,6 +405,20 @@ export const GENERIC_DECKS: DeckDef[] = [
 				const r = run.rng.next();
 				setMod(run, c, { edition: r < 0.6 ? 'etched' : r < 0.9 ? 'lacquered' : 'prismatic' });
 			}
+		}
+	},
+	// Every card enhanced, each with an edition rolled at the usual odds.
+	{
+		key: 'wild', name: 'Wild Deck', text: 'Every card starts with a random edition (no x mult ones), but every goal is higher', back: 'wild',
+		apply: (run) => {
+			// Additive editions only: ×mult editions on every card would multiply
+			// together into the thousands.
+			const pool = Object.values(C.CARD_EDITIONS).filter((e) => !e.effect.xmult && e.key !== 'molten');
+			for (const c of run.pack) setMod(run, c, { edition: run.rng.pick(pool)!.key });
+			// Goals rise by how much a fully enhanced deck helps in each game (you
+			// play every card of 13 in Hearts, as few as one in Whist 22); tuned
+			// with bot runs to play a little stronger than the Standard Deck.
+			run.ext.goalScale = WILD_GOALS[run.module.id] ?? 2;
 		}
 	},
 	// The plain start: no enhanced cards.
@@ -554,6 +571,12 @@ export function boardName(run: Run): string {
 	return run.module.boardName?.(run) ?? `Board ${run.board}`;
 }
 
+/** This run's goal for a board of the current table: the game's, scaled by
+ *  the starting deck (the Wild Deck's goals are higher). */
+export function boardGoal(run: Run, board: number): number {
+	return Math.round(goalFor(run.module, run.table, board) * (run.ext.goalScale ?? 1));
+}
+
 /** The goal for a board (past the last table, it keeps growing). */
 export function goalFor(m: GameModule, table: number, board: number): number {
 	if (table <= m.tables) return m.goal(table, board);
@@ -573,7 +596,7 @@ function newTable(run: Run) {
 
 function startBoard(run: Run) {
 	if (run.board === 1) newTable(run);
-	run.target = goalFor(run.module, run.table, run.board);
+	run.target = boardGoal(run, run.board);
 	run.score = 0;
 	run.handsThisBoard = (bossActive(run) && run.boss!.hands) || run.module.handsPerBoard;
 	run.handsLeft = run.handsThisBoard;
@@ -780,8 +803,10 @@ export function skipBoard(run: Run): [boolean, string?] {
 
 function giveRandomEdition(run: Run) {
 	if (run.module.cardMods === false) return;
+	// A card without an edition, or (every card enhanced, a Wild Deck) any card:
+	// its edition is replaced.
 	const free = run.pack.filter((c) => !mod(run, c).edition);
-	if (free.length) setMod(run, run.rng.pick(free)!, { edition: C.rollCardEdition(run.rng).key });
+	setMod(run, run.rng.pick(free.length ? free : run.pack)!, { edition: C.rollCardEdition(run.rng).key });
 }
 
 // ------------------------------------------------------------------ the club
@@ -949,8 +974,15 @@ function bundleOptions(run: Run, key: BundleKey): BundleChoice[] {
 		const pool = run.rng.shuffle(allPloys(run.module).slice());
 		for (const def of pool.slice(0, 3)) out.push({ kind: 'ploy', def });
 	} else {
-		const free = run.rng.shuffle(run.pack.filter((c) => !mod(run, c).edition));
-		for (const c of free.slice(0, 3)) out.push({ kind: 'edition', cardId: c.id!, edition: C.rollCardEdition(run.rng).key });
+		// Cards without an edition; short of three (a Wild Deck), any card, whose
+		// edition the new one replaces (never the same edition again).
+		let pool = run.pack.filter((c) => !mod(run, c).edition);
+		if (pool.length < 3) pool = run.pack.slice();
+		for (const c of run.rng.shuffle(pool).slice(0, 3)) {
+			let ed = C.rollCardEdition(run.rng).key;
+			for (let i = 0; i < 4 && ed === mod(run, c).edition; i++) ed = C.rollCardEdition(run.rng).key;
+			out.push({ kind: 'edition', cardId: c.id!, edition: ed });
+		}
 	}
 	return out;
 }

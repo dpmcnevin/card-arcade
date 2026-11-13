@@ -468,6 +468,7 @@ const FLAME = ['..#..', '..##.', '.###.', '.####', '#####', '#####', '.###.'];
 const DOLLAR = ['..#..', '.####', '#.#..', '.###.', '..#.#', '####.', '..#..'];
 const CROWN = ['#.#.#', '#####', '#####', '.###.'];
 const KEY = ['.##..', '#..#.', '.##..', '..#..', '..##.', '..#..', '..##.'];
+const SPARK = ['..#..', '..#..', '##.##', '..#..', '..#..'];
 
 const BACKS: Record<string, BackStyle> = {
 	standard: { edge: P.wine, deep: P.wineDeep, field: P.wineDeep, light: P.wineLight, trim: P.gold, trimLight: P.goldLight, trimDeep: P.goldDeep, pattern: 'sunburst', emblem: S.V },
@@ -475,6 +476,7 @@ const BACKS: Record<string, BackStyle> = {
 	gilded: { deep: hex('#5c4416'), field: P.goldDeep, light: hex('#a8822f'), trim: P.goldLight, trimLight: P.cream, trimDeep: hex('#5c4416'), pattern: 'lattice', emblem: DOLLAR },
 	royal: { deep: hex('#141d4a'), field: hex('#1d2a66'), light: hex('#2c3f8c'), trim: P.gold, trimLight: P.goldLight, trimDeep: P.goldDeep, pattern: 'stripes', emblem: CROWN },
 	schemer: { deep: hex('#1e1533'), field: hex('#2b1f4a'), light: hex('#45326f'), trim: hex('#c2adf0'), trimLight: hex('#efe8ff'), trimDeep: hex('#6b54a3'), pattern: 'rings', emblem: S.SUIT7[1] },
+	wild: { deep: hex('#140f2e'), field: hex('#1f1747'), light: hex('#3b2a7a'), trim: hex('#ff4fd8'), trimLight: hex('#7ff2ff'), trimDeep: hex('#8a2577'), pattern: 'rings', emblem: SPARK },
 	collector: { deep: hex('#0d2b25'), field: hex('#123b33'), light: hex('#1f5e50'), trim: P.gold, trimLight: P.goldLight, trimDeep: P.goldDeep, pattern: 'dots', emblem: KEY }
 };
 

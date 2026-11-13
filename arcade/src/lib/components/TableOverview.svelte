@@ -32,7 +32,7 @@
 				{@const boss = b === m.boardsPerTable ? run.boss : null}
 				<div class="board" class:now={b === run.board} class:past={b < run.board} class:boss={!!boss}>
 					<div class="bh"><b>{name(b)}</b><span>{b < run.board ? 'done' : b === run.board ? 'now' : 'up next'}</span></div>
-					<div class="goal">{R.goalFor(m, run.table, b).toLocaleString()}</div>
+					<div class="goal">{R.boardGoal(run, b).toLocaleString()}</div>
 					<div class="dim">{(boss?.hands ?? m.handsPerBoard)} {m.words.hands} · pays ${R.MONEY_PER_BOARD}{boss ? `+${R.BOSS_BONUS}` : ''}</div>
 					{#if b === run.board && started}<div class="prog">Scored {run.score.toLocaleString()} · {run.handsLeft} {m.words.hands} left</div>{/if}
 					{#if boss}

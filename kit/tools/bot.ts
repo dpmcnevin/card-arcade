@@ -6,9 +6,9 @@ import { apply, type Action, type Save } from '../src/run/save.ts';
 import type { GameModule, Run } from '../src/run/run.ts';
 import { newRng } from '../src/core/rules/rng.ts';
 
-export function playRun(module: GameModule, seed: string | number, maxSteps = 20000): { run: Run; save: Save } {
-	const run = R.newRun(module, seed);
-	const save: Save = { version: 1, game: module.id, seed, actions: [] };
+export function playRun(module: GameModule, seed: string | number, maxSteps = 20000, deck?: string): { run: Run; save: Save } {
+	const run = R.newRun(module, seed, { deck });
+	const save: Save = { version: 1, game: module.id, seed, ...(deck ? { deck } : {}), actions: [] };
 	const rng = newRng(`${seed}|bot`);
 	const go = (a: Action) => {
 		save.actions.push(a);
@@ -64,7 +64,8 @@ export function playRun(module: GameModule, seed: string | number, maxSteps = 20
 				const wi = run.relics.reduce((w, r, i) => (v(r.def) < v(run.relics[w].def) ? i : w), 0);
 				go({ t: 'sell', slot: wi });
 			}
-			const card = R.needsCard(it) ? rng.pick(run.pack.filter((c) => !R.mod(run, c).edition))?.id : undefined;
+			const free = run.pack.filter((c) => !R.mod(run, c).edition);
+			const card = R.needsCard(it) ? rng.pick(free.length ? free : run.pack)?.id : undefined;
 			go({ t: 'buy', slot: best, card });
 		} else if (p === R.PHASE.SHOP) {
 			if (run.opening) {
