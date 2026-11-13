@@ -11,10 +11,10 @@ class Settings {
 	fourColor = $state(false);
 	/** Pixel-art cards, or smooth ones. */
 	pixel = $state(true);
-	/** Edition shine moves in pixel steps (much cheaper without a GPU). A
-	 *  debug option turns it smooth, to compare: add ?debug=smooth-shine to
-	 *  the address. Not saved. */
-	stepped = $state(true);
+	/** Edition shine moves in pixel steps: a debug option that degrades the
+	 *  animation to save CPU (add ?debug=stepped-shine to the address; not
+	 *  saved). Smooth by default. */
+	stepped = $state(false);
 
 	constructor() {
 		try {
@@ -26,7 +26,7 @@ class Settings {
 			if (typeof s.pixel === 'boolean') this.pixel = s.pixel;
 		} catch {}
 		try {
-			if (new URLSearchParams(location.search).getAll('debug').some((d) => d.split(',').includes('smooth-shine'))) this.stepped = false;
+			if (new URLSearchParams(location.search).getAll('debug').some((d) => d.split(',').includes('stepped-shine'))) this.stepped = true;
 		} catch {}
 	}
 
