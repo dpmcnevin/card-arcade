@@ -10,5 +10,5 @@
 		"lib": ["es2023", "dom"],
 		"types": ["node"]
 	},
-	"include": ["src", "games", "tools"]
+	"include": ["src", "games", "tools", "bridge"]
 }

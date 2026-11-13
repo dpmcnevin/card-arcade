@@ -6,10 +6,13 @@
 	"description": "A kit for card roguelikes in one style: shared cards, pixel art and sound, a generic run (goals, money, the club, relics, ploys, upgrades, chips x mult scoring, saves), and game modules that plug into it.",
 	"scripts": {
 		"test": "node --test 'tests/*.test.mjs'",
-		"check": "tsc --noEmit -p tsconfig.json"
+		"check": "tsc --noEmit -p tsconfig.json",
+		"build:bridge": "esbuild bridge/entry.ts --bundle --format=iife --target=es2022 --outfile=${BRIDGE_OUT:-.bridge/game-bundle.js}",
+		"render-audio": "node tools/render-audio.ts"
 	},
 	"devDependencies": {
 		"@types/node": "^26.1.0",
+		"esbuild": "^0.28.2",
 		"typescript": "^6.0.3"
 	}
 }

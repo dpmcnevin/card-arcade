@@ -4,3 +4,9 @@ arcade/build
 .DS_Store
 vite.config.ts.timestamp-*
 .claude/
+.bridge/
+ipad/build/
+ipad/*.xcodeproj/
+ipad/CardArcade/Resources/game-bundle.js
+ipad/CardArcade/Resources/engine-version.txt
+ipad/CardArcade/Resources/Audio/
