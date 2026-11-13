@@ -646,6 +646,11 @@ final class GameModel {
                     self.continueAfterHand()
                 case .won: self.enterShop()
                 case .shop:
+                    // CA_TO_SHOP: stop in the first club (layout checks), with a relic bought.
+                    if ProcessInfo.processInfo.environment["CA_TO_SHOP"] != nil {
+                        if let r = v.shop?.first(where: { $0.kind == "relic" && $0.canBuy }) { self.buy(r) }
+                        return
+                    }
                     if v.opening != nil { self.pickBundle(0) } else { self.leaveShop() }
                 default: return
                 }

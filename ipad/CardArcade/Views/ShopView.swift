@@ -46,13 +46,18 @@ struct ShopView: View {
                     ForEach(0..<(v.relics.count + max(0, v.relicSlots - v.relicSlotsUsed)), id: \.self) { i in
                         if i < v.relics.count { OwnedRelic(relic: v.relics[i], index: i) }
                         else {
-                            Text("empty").font(Theme.font(14)).foregroundStyle(Theme.inkFaint)
-                                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                                .background(PixelRect(radius: 10).fill(Theme.bg))
+                            VStack(spacing: 6) {
+                                Text("+").font(Theme.font(30, .bold))
+                                Text("Empty slot").font(Theme.font(14))
+                            }
+                            .foregroundStyle(Theme.inkFaint.opacity(0.7))
+                            .frame(maxWidth: .infinity, maxHeight: .infinity)
+                            .background(PixelRect(radius: 10).fill(Theme.bg.opacity(0.45)))
+                            .overlay(PixelRect(radius: 10).stroke(Theme.panelEdge, style: StrokeStyle(lineWidth: 2, dash: [6, 4])))
                         }
                     }
                 }
-                .frame(height: 110 + L.dy * 0.3)
+                .frame(height: 150 + L.dy * 0.3)
             }
             Spacer()
             HStack {
@@ -73,32 +78,74 @@ struct ShopView: View {
 }
 
 /// A relic you own, along the top, with its sell button.
+/// A relic you hold, as a card: a banner in its rarity's color, the icon
+/// large on a tile with its edition's shine, what it does, and its price to sell.
 struct OwnedRelic: View {
     @Environment(GameModel.self) private var model
     let relic: RelicV
     let index: Int
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            HStack(spacing: 8) {
-                Icon(key: relic.icon).modifier(EditionShine(edition: relic.edition?.key))
-                VStack(alignment: .leading, spacing: 0) {
-                    if let e = relic.edition { EditionTag(edition: e, size: 11) }
-                    Text(relic.name).font(Theme.font(14)).lineLimit(2).minimumScaleFactor(0.8)
+        let edge = Theme.rarity[min(relic.rarity, Theme.rarity.count - 1)]
+        let jinxed = model.view?.jinxed == relic.key
+        VStack(spacing: 0) {
+            HStack(spacing: 6) {
+                Text(relic.rarityName.uppercased()).font(Theme.font(11, .bold)).kerning(1).foregroundStyle(Theme.bg)
+                Spacer(minLength: 0)
+                if jinxed {
+                    Text("JINXED").font(Theme.font(11, .bold)).kerning(1).foregroundStyle(Theme.bad)
+                } else if let e = relic.edition {
+                    Text(e.name.uppercased()).font(Theme.font(11, .bold)).kerning(1)
+                        .foregroundStyle(Theme.bg)
+                        .padding(.horizontal, 5)
+                        .background(PixelRect(radius: 2).fill(Edition.color(e.key)))
                 }
             }
+            .padding(.horizontal, 10).frame(height: 20)
+            .background(edge)
+            HStack(alignment: .top, spacing: 10) {
+                Icon(key: relic.icon, scale: 2.6)
+                    .modifier(EditionShine(edition: relic.edition?.key))
+                    .saturation(jinxed ? 0 : 1)
+                    .padding(5)
+                    .background(PixelRect(radius: 6).fill(edge.opacity(0.22)))
+                    .overlay(PixelRect(radius: 6).stroke(edge.opacity(0.7), lineWidth: 2))
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(relic.name).font(Theme.font(16, .bold)).foregroundStyle(Theme.ink)
+                        .lineLimit(1).minimumScaleFactor(0.7)
+                    Text(relic.text).font(Theme.font(12)).foregroundStyle(Theme.inkDim)
+                        .lineLimit(4).minimumScaleFactor(0.85)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                Spacer(minLength: 0)
+            }
+            .padding(.horizontal, 9).padding(.top, 8)
             Spacer(minLength: 0)
-            GameButton("Sell $\(relic.sell)", style: .plain, size: .small, sound: nil) { model.sell(relic.slot) }
+            HStack {
+                Spacer()
+                Button {
+                    model.sell(relic.slot)
+                } label: {
+                    Text("Sell $\(relic.sell)").font(Theme.font(13, .bold)).foregroundStyle(Theme.ink)
+                        .padding(.horizontal, 10).frame(height: 24)
+                        .background(PixelRect(radius: 4).fill(Theme.panelEdge).shadow(color: .black.opacity(0.35), radius: 0, x: 1, y: 3))
+                }
+                .buttonStyle(PressStyle())
+            }
+            .padding(8)
         }
-        .padding(8)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(PixelRect(radius: 8).fill(Theme.panel).shadow(color: .black.opacity(0.35), radius: 0, x: 2, y: 5))
-        .overlay(PixelRect(radius: 8).stroke(Theme.rarity[min(relic.rarity, Theme.rarity.count - 1)], lineWidth: 2))
+        .background(
+            PixelRect(radius: 8)
+                .fill(LinearGradient(colors: [edge.mix(Theme.panel, 0.16), Theme.panel], startPoint: .top, endPoint: .bottom))
+                .shadow(color: .black.opacity(0.4), radius: 0, x: 2, y: 5)
+        )
+        .clipShape(PixelRect(radius: 8))
+        .overlay(PixelRect(radius: 8).stroke(edge, lineWidth: 2))
+        .shadow(color: .black.opacity(0.4), radius: 0, x: 2, y: 5)
     }
 }
 
-/// A ware on the baize: a card with its price coin. Selected, it lifts and
-/// shows what it does, with a Buy button.
 extension Color {
     /// This color mixed into another: `amount` of self, the rest `other`.
     func mix(_ other: Color, _ amount: Double) -> Color {
@@ -147,9 +194,19 @@ struct Ware: View {
                 }
                 else if let i = item.icon { Icon(key: i, scale: 4).modifier(EditionShine(edition: item.edition?.key)) }
             }
+            .background {
+                // A relic sits in a burst of its rarity's color.
+                if item.kind == "relic" { RelicBurst(color: edge, rays: 8 + 2 * (item.rarity ?? 1)).frame(width: 130, height: 130) }
+            }
             Spacer(minLength: 0)
             if item.kind == "relic", let r = item.rarityName {
-                Text(r).font(Theme.font(12)).foregroundStyle(edge).brightness(-0.25).padding(.bottom, 2)
+                HStack(spacing: 4) {
+                    ForEach(0..<max(1, item.rarity ?? 1), id: \.self) { _ in
+                        Rectangle().fill(edge).frame(width: 6, height: 6).rotationEffect(.degrees(45))
+                    }
+                    Text(r).font(Theme.font(12)).foregroundStyle(edge).brightness(-0.3)
+                }
+                .padding(.bottom, 2)
             }
             Text(item.name).font(Theme.font(16, .bold)).foregroundStyle(bundle ? Self.cream : Self.ink)
                 .multilineTextAlignment(.center).lineLimit(2).minimumScaleFactor(0.8)
@@ -332,5 +389,34 @@ struct CardPickerView: View {
             .frame(width: 950)
         }
         .transition(.opacity.combined(with: .scale(scale: 0.9)))
+    }
+}
+
+/// Rays in a relic's rarity color, fading out from the middle, slowly turning.
+struct RelicBurst: View {
+    let color: Color
+    var rays = 10
+
+    var body: some View {
+        TimelineView(.animation(minimumInterval: 1 / 20)) { tl in
+            let t = tl.date.timeIntervalSinceReferenceDate
+            Canvas { g, size in
+                let c = CGPoint(x: size.width / 2, y: size.height / 2)
+                let r = max(size.width, size.height) / 2
+                let turn = (t * 0.15).truncatingRemainder(dividingBy: .pi * 2)
+                for i in 0..<rays {
+                    let a0 = turn + Double(i) / Double(rays) * .pi * 2
+                    let a1 = a0 + .pi / Double(rays)
+                    var p = Path()
+                    p.move(to: c)
+                    p.addLine(to: CGPoint(x: c.x + cos(a0) * r, y: c.y + sin(a0) * r))
+                    p.addLine(to: CGPoint(x: c.x + cos(a1) * r, y: c.y + sin(a1) * r))
+                    p.closeSubpath()
+                    g.fill(p, with: .color(color.opacity(0.32)))
+                }
+            }
+            .mask(RadialGradient(colors: [.white, .white.opacity(0)], center: .center, startRadius: 10, endRadius: 64))
+        }
+        .allowsHitTesting(false)
     }
 }
