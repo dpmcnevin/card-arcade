@@ -158,18 +158,21 @@
 		cursor: grab;
 		touch-action: none;
 		transition: transform 0.12s;
-		filter: drop-shadow(0 4px 0 rgba(0, 0, 0, 0.35));
 	}
+	/* The shadow is on the card itself, not around the swaying layer, so the
+	   sway only moves a layer instead of redrawing a filter every frame. */
 	.fc img {
 		width: 80px;
 		height: 112px;
 		display: block;
 		image-rendering: auto;
+		filter: drop-shadow(0 4px 0 rgba(0, 0, 0, 0.35));
 	}
 	/* An idle sway, each card out of step; a bigger wiggle under the pointer. */
 	.wob {
 		display: inline-flex;
 		animation: sway 4.2s ease-in-out infinite;
+		will-change: transform;
 	}
 	.fc:hover .wob {
 		animation: wiggle 0.5s ease-in-out;

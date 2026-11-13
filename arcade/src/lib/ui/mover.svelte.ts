@@ -19,6 +19,14 @@ const TILE = 80 / 2.05;
 /** The most a card leans in flight. */
 const MAX_LEAN = 0.35;
 
+/** Every card in motion shares one frame loop (a deal moves dozens at once). */
+const moving = new Set<Mover>();
+let loop = 0;
+function frame(now: number) {
+	for (const m of moving) if (!m.step(now)) moving.delete(m);
+	loop = moving.size ? requestAnimationFrame(frame) : 0;
+}
+
 const reduced = () => typeof matchMedia !== 'undefined' && matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 export class Mover {
@@ -26,7 +34,7 @@ export class Mover {
 	target: Pose;
 	private v = { x: 0, y: 0, r: 0, s: 0 };
 	private j: { amt: number; rot: number; t0: number } | null = null;
-	private raf = 0;
+	private active = false;
 	private last = 0;
 
 	constructor(start: Pose) {
@@ -48,17 +56,20 @@ export class Mover {
 	}
 
 	stop() {
-		cancelAnimationFrame(this.raf);
-		this.raf = 0;
+		this.active = false;
+		moving.delete(this);
 	}
 
 	private wake() {
-		if (this.raf || typeof requestAnimationFrame === 'undefined') return;
+		if (this.active || typeof requestAnimationFrame === 'undefined') return;
+		this.active = true;
 		this.last = performance.now();
-		this.raf = requestAnimationFrame(this.tick);
+		moving.add(this);
+		if (!loop) loop = requestAnimationFrame(frame);
 	}
 
-	private tick = (now: number) => {
+	/** One frame of motion; false once the card has come to rest. */
+	step(now: number): boolean {
 		const dt = Math.min(1 / 30, Math.max(1 / 240, (now - this.last) / 1000));
 		this.last = now;
 		const c = { ...this.current },
@@ -111,10 +122,10 @@ export class Mover {
 		if (still) {
 			this.current = { ...t };
 			this.v = { x: 0, y: 0, r: 0, s: 0 };
-			this.raf = 0;
-			return;
+			this.active = false;
+			return false;
 		}
 		this.current = c;
-		this.raf = requestAnimationFrame(this.tick);
-	};
+		return true;
+	}
 }

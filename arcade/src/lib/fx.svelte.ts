@@ -27,6 +27,13 @@ export interface BurstOpts {
 
 class Fx {
 	particles: Particle[] = [];
+	/** Starts the frame loop (Particles.svelte sets it). The loop runs only
+	 *  while there's confetti or shake, so an idle page draws nothing. */
+	wake: () => void = () => {};
+	/** Anything left to animate? */
+	get busy() {
+		return this.particles.length > 0 || this.shakeAmount >= 0.1 || this.shakeX !== 0 || this.shakeY !== 0;
+	}
 	shakeAmount = 0;
 	shakeX = $state(0);
 	shakeY = $state(0);
@@ -51,10 +58,12 @@ class Fx {
 				gravity: opts.gravity ?? 520
 			});
 		}
+		this.wake();
 	}
 
 	shake(amount: number) {
 		this.shakeAmount = Math.max(this.shakeAmount, amount);
+		this.wake();
 	}
 
 	update(dt: number) {

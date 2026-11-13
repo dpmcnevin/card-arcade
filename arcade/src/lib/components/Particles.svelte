@@ -8,29 +8,41 @@
 
 	onMount(() => {
 		let raf = 0,
-			last = performance.now();
+			last = 0;
 		const frame = (now: number) => {
-			raf = requestAnimationFrame(frame);
-			// The arcade's only frame loop: particles and shake advance here.
+			// The arcade's only frame loop: particles and shake advance here. It
+			// stops when they're done (an idle page redraws nothing) and
+			// fx.wake() starts it again.
 			fx.update(Math.min(0.05, (now - last) / 1000));
 			last = now;
 			const g = canvas.getContext('2d');
-			if (!g) return;
-			const k = scale * (window.devicePixelRatio || 1);
-			const cw = Math.round(w * k),
-				ch = Math.round(h * k);
-			if (canvas.width !== cw || canvas.height !== ch) {
-				canvas.width = cw;
-				canvas.height = ch;
+			if (g) {
+				const k = scale * (window.devicePixelRatio || 1);
+				const cw = Math.round(w * k),
+					ch = Math.round(h * k);
+				if (canvas.width !== cw || canvas.height !== ch) {
+					canvas.width = cw;
+					canvas.height = ch;
+				}
+				g.setTransform(1, 0, 0, 1, 0, 0);
+				g.clearRect(0, 0, cw, ch);
+				if (fx.particles.length) {
+					g.setTransform(k, 0, 0, k, 0, 0);
+					fx.draw(g);
+				}
 			}
-			g.setTransform(1, 0, 0, 1, 0, 0);
-			g.clearRect(0, 0, cw, ch);
-			if (fx.particles.length === 0) return;
-			g.setTransform(k, 0, 0, k, 0, 0);
-			fx.draw(g);
+			raf = fx.busy ? requestAnimationFrame(frame) : 0;
 		};
-		raf = requestAnimationFrame(frame);
-		return () => cancelAnimationFrame(raf);
+		fx.wake = () => {
+			if (raf) return;
+			last = performance.now();
+			raf = requestAnimationFrame(frame);
+		};
+		return () => {
+			cancelAnimationFrame(raf);
+			raf = 0;
+			fx.wake = () => {};
+		};
 	});
 </script>
 

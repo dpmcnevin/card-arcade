@@ -111,6 +111,7 @@ class Arcade {
 			this.persist();
 			this.v++;
 			sound.play('flip');
+			this.checkClaim();
 			return this.flash('Taken back', 'good');
 		}
 		const before = run.phase;
@@ -218,7 +219,25 @@ class Arcade {
 		} finally {
 			this.busy = false;
 			this.v++;
+			this.checkClaim();
 		}
+	}
+
+	/** Every way to play the rest of the hand ends the same: the player may
+	 *  claim it. The search behind it can take tens of milliseconds, so it runs
+	 *  once per turn, just after the table settles, not on every redraw. */
+	claim = $state(false);
+	private claimKey = '';
+	private checkClaim() {
+		const run = this.run;
+		if (!run || run.phase !== R.PHASE.PLAY || R.aiToMove(run) || !run.module.settled) return void (this.claim = false);
+		const key = `${run.game}|${this.save?.actions.length}|${run.stats.hands}`;
+		if (key === this.claimKey) return;
+		this.claimKey = key;
+		this.claim = false;
+		setTimeout(() => {
+			if (this.run === run && this.claimKey === key && run.phase === R.PHASE.PLAY && !R.aiToMove(run)) this.claim = run.module.settled!(run);
+		}, 60);
 	}
 
 	/** The board whose overview was last dismissed ("table.board"). */

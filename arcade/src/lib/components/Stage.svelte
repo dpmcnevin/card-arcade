@@ -98,7 +98,7 @@
 					<!-- The run changes in place: redraw the panel on every change. -->
 					<div class="pre">{#key arcade.v}<ui.Pre {run} picked={arcade.picked} act={(a) => arcade.game(a)} v={arcade.v} />{/key}</div>
 				{:else if phase === R.PHASE.PLAY && !arcade.busy && (void arcade.v, ui.view(run).legal.size)}
-					{@const claim = (void arcade.v, !!run.module.settled?.(run))}
+					{@const claim = arcade.claim}
 					<div class="out" class:claim style:top="{L.outAt[1]}px">
 						<button title={claim ? 'Every way to play the rest ends the same: take it now' : 'Let the table play the rest of the hand for you'} onclick={() => arcade.game({ t: 'playOut' })}>{claim ? 'Claim the rest' : 'Play it out'}</button>
 					</div>

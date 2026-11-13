@@ -19,19 +19,23 @@
 		overflow: hidden;
 		flex: none;
 	}
+	/* The sheen is a band on an oversized layer that slides across by
+	   transform (the GPU moves it; nothing is repainted each frame). */
 	.shine::after {
 		content: '';
 		position: absolute;
-		inset: 0;
+		left: -100%;
+		top: -100%;
+		width: 300%;
+		height: 300%;
 		pointer-events: none;
-		background: linear-gradient(135deg, transparent 35%, rgba(255, 255, 255, 0.85) 50%, transparent 65%) no-repeat;
-		background-size: 300% 300%;
+		background: linear-gradient(135deg, transparent 44%, rgba(255, 255, 255, 0.85) 50%, transparent 56%);
 		mix-blend-mode: screen;
 		animation: sweep 1.8s linear infinite;
+		will-change: transform;
 	}
 	.shine.etched::before,
-	.shine.lacquered::before,
-	.shine.prismatic::before {
+	.shine.lacquered::before {
 		content: '';
 		position: absolute;
 		inset: 0;
@@ -46,11 +50,22 @@
 		background: rgba(232, 87, 63, 0.3);
 		mix-blend-mode: overlay;
 	}
+	/* The rainbow turns by rotating an oversized wheel (a transform), not by
+	   animating a filter, which would repaint it every frame. */
 	.shine.prismatic::before {
+		content: '';
+		position: absolute;
+		left: -60%;
+		top: -60%;
+		width: 220%;
+		height: 220%;
+		pointer-events: none;
+		z-index: 1;
 		background: conic-gradient(red, orange, yellow, lime, cyan, blue, violet, red);
 		opacity: 0.6;
 		mix-blend-mode: overlay;
 		animation: turn 3s linear infinite;
+		will-change: transform;
 	}
 	.shine.phantom {
 		opacity: 0.6;
@@ -61,15 +76,15 @@
 	}
 	@keyframes sweep {
 		from {
-			background-position: 100% 100%;
+			transform: translate(-34%, -34%);
 		}
 		to {
-			background-position: 0% 0%;
+			transform: translate(34%, 34%);
 		}
 	}
 	@keyframes turn {
 		to {
-			filter: hue-rotate(360deg);
+			transform: rotate(360deg);
 		}
 	}
 	@media (prefers-reduced-motion: reduce) {

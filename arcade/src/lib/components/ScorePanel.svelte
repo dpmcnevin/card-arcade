@@ -231,13 +231,17 @@
 		overflow: hidden;
 		animation: pulse 1.1s ease-in-out infinite;
 	}
+	/* A band sliding across by transform (no repaint each frame). */
 	.eq.fire .num::after {
 		content: '';
 		position: absolute;
-		inset: 0;
-		background: linear-gradient(105deg, transparent 35%, rgba(255, 255, 255, 0.85) 50%, transparent 65%) no-repeat;
-		background-size: 250% 100%;
+		top: 0;
+		bottom: 0;
+		left: -100%;
+		width: 300%;
+		background: linear-gradient(105deg, transparent 42%, rgba(255, 255, 255, 0.85) 50%, transparent 58%);
 		animation: shine 1.6s linear infinite;
+		will-change: transform;
 	}
 	.num {
 		position: relative;
@@ -264,10 +268,10 @@
 	}
 	@keyframes shine {
 		from {
-			background-position: 150% 0;
+			transform: translateX(-34%);
 		}
 		to {
-			background-position: -100% 0;
+			transform: translateX(34%);
 		}
 	}
 	@keyframes pulse {
