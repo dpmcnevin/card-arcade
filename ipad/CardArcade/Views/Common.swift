@@ -266,10 +266,10 @@ struct EditionShine: ViewModifier {
                 band.blendMode(.screen)
             }
         case "static":
-            // TV snow, redrawn ten times a second, and scanlines rolling down.
+            // Faint TV snow, redrawn a few times a second, and light scanlines rolling down.
             ZStack {
                 Canvas { g, size in
-                    var rng = SplitMix(seed: UInt64(t * 10))
+                    var rng = SplitMix(seed: UInt64(t * 3))
                     let px = 3.0
                     for y in stride(from: 0.0, to: size.height, by: px) {
                         for x in stride(from: 0.0, to: size.width, by: px) {
@@ -278,11 +278,11 @@ struct EditionShine: ViewModifier {
                         }
                     }
                 }
-                .opacity(0.45).blendMode(.overlay)
+                .opacity(0.2).blendMode(.overlay)
                 Canvas { g, size in
-                    let off = (t * 12).truncatingRemainder(dividingBy: 5)
-                    for y in stride(from: off - 5, to: size.height, by: 5) {
-                        g.fill(Path(CGRect(x: 0, y: y, width: size.width, height: 2)), with: .color(.black.opacity(0.22)))
+                    let off = (t * 6).truncatingRemainder(dividingBy: 6)
+                    for y in stride(from: off - 6, to: size.height, by: 6) {
+                        g.fill(Path(CGRect(x: 0, y: y, width: size.width, height: 2)), with: .color(.black.opacity(0.08)))
                     }
                 }
             }

@@ -110,8 +110,8 @@
 		background: url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAQAAADZc7J/AAAFrElEQVR4nC2Ve1SVVRDFD9LSxAJTBEUvJhSxMAOzwLRQkDR6qJCPZHEFvSH4KqpbGhZmUKBUkoCorUhUSMR32FNCTZQUMzOB1BDMgMgk8ZUK7n6wXPzB931nzsyevffMNZXyUQ+tVbmWqJuGKVfeClSDguSpGO3m/3UivJSmffpW/2mq6mVRhY7pF91DjMnWD9qskYrm8gPqp0wN1GL9rAc1WdPVpiuEe6lRDlqgg7xZNYCEM1WpdRRYI3NIofpQJfLT+yrWBRXIV++Qqqte0Qql8xasKr2r4fpX5yiyRS2aq2Y5yk7iEBmjImrZAXpQd2grsKpUrRs6BRqrnPi6VM/w1VthmqEjOqn+ug/MzRpD4xaZKD2mw/pDX2iHXqLTHrQzXfMIn6QUQC4Gy1iN1yj11ot6niuvUv1vis6k+RqZlTSQoO5aqGQgRhFWTKpkvnyk09DqSu3D+kwnVEojFhIHK4CzyxRbCJGmhewV2gncGGp113kOi+n0UxIXU6VMi+DepkgYj+T6UGjeRCNNOgPCLJkjCFOgJ0jQB5huNHMWEneDphiYBTDwG8/fg+ZxwjeC1kpLRaSsId5ZJgtmbyJJDkpUKkLhJHwZFLVwcIKebToKqlt6U616AV2y0WU7cgZDaRl4zGSCyrWLiyX8rVAsndo5ukTFQZpCsA9nHcoskz+nyZzcRclRlLHBltmhDCVhnGoEux8FRgJ8Fqr3I3G9vtRqcCxDSDe8F65Vegi/rOfOTo3WfMxlbgFjht4D+DV10XcwEQ5Ud+Uh5VLtIaxZQ3SAmFDgD9GTKOGBA8ZBuTNeMKnAWIgXEmB2pOow0GtcvVMuVNwD3HywJAJ8NhL7IWA8QudrOX5019t40fxEP12BnYPaj5K3Ce2zoS2QNuyaA9xhPOfBfDtu8KehbbqIsH605w9ak4JVbFrZad7TdF8OlXE44yRdt4NtF7IdhaMA/OfDc5WuMlr7ceh22uol465D9DVKX2GQdFIN1+8c2hGujCbcsZQr1nbmWyM4PUn7F4yF0NAIkB+UaSfTbD2CYVNViNPmo0UbkJO1lxHypeNwRt23U8xpYJrL91xMdpZmx5OSfbAGy/RCqIbOCiMkSBsM5GjMVKOnSevB9LUi6jr6rsWdY5FzDDK34FLzDzCe5SAB91dwUbdHpYz3DObBjhZzkLoIilfT3mYED+VGGikiwWq6wWsDsI/BQAqWysW04xjcQq7ux21htNaAMxbw9g0Ul6ov4iUxdvF6A2bMZfIVaaI2AOwU1FmhZxOHZ5DVSqhNx/U6OyCQnn3Zig1sjKfwzVBi40hq4nH2MY4WQZCVwN48laLwPLBspOY+vFkLM+n4I5We61gmaUCfSvKZzIpZxQDvo7M6xKpH9/0EuwDdWxNYcFZ9Ahsd1gmhTBDf5lBoGastnFHbQ6SxwHYedhmMcBegaRsXqoHpR3YnSItlQn1A6cLWnEHNCvazAyYuwVzh3KAFX7QPYL5dYd+fpR7BJMSTYJY+Z2guY+YYSJ5ImYF8GwSKQFbZdrhzQCnjxdVr1EhijUfrYfUkWX/aWELFCpzYxED1xKU+CH0OR2Sh2noKuOGfAIbKBMN/JlzfpPtKFGgHVk8GOxP2LYBO5YInO/tHGvoVG18Dl52x34aEbchKAkeuXkLC83w8gAoXedpNWmd20nI9p3tx3FSe82HqEghaoXA0NG/Aix4yYeyYrZCWoa/1ASbuy/UrGHsLdaIhsUZ3MynHEbUR5zVhrC540AHGJkDtMJlpbJkc1pQnfCcC2YFxTQLuFBSJwlybwOdNrRsInUD9kyQbgF9iEd+RETBOMHtVH0OMV+cPSzR19sJ+xyT+CTNFcBDH1ipEuFSUWEPltTgxnpMg2jFpaOpJQDv+szAwb/EL2YdaNpB1zEgTIl/HCxWQO4nmEhkwd6hcwB6JYGb+B84E8g9tkxLwAAAAAElFTkSuQmCC") 0 0 / 64px 64px;
 		image-rendering: pixelated;
 		mix-blend-mode: overlay;
-		opacity: 0.75;
-		animation: snow 0.4s steps(1) infinite;
+		opacity: 0.3;
+		animation: snow 1.2s steps(1) infinite;
 		will-change: transform;
 	}
 	.shine.static::after {
@@ -119,9 +119,9 @@
 		top: -100%;
 		width: 100%;
 		height: 200%;
-		background: repeating-linear-gradient(0deg, rgba(20, 20, 30, 0.22) 0 2px, transparent 2px 5px);
+		background: repeating-linear-gradient(0deg, rgba(20, 20, 30, 0.08) 0 2px, transparent 2px 6px);
 		mix-blend-mode: normal;
-		animation: scan 3s linear infinite;
+		animation: scan 6s linear infinite;
 	}
 	@keyframes snow {
 		0% { transform: translate(0, 0); }
