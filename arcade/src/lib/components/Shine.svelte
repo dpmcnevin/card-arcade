@@ -53,25 +53,21 @@
 	}
 	/* Rainbow foil: diagonal bands of color drifting across the card, like a
 	   holographic sheen (no center to spin around). The bands repeat every
-	   90px along their slant, so sliding the layer sideways by one repeat
-	   (90px / sin 110deg = 95.78px) loops seamlessly; it's a transform, so the
-	   GPU moves it without repainting. */
+	   90px along their slant, so sliding them sideways by one repeat
+	   (90px / sin 110deg = 95.78px) loops seamlessly. */
 	.shine.prismatic::before {
 		content: '';
 		position: absolute;
-		left: 0;
-		top: 0;
-		bottom: 0;
-		width: calc(100% + 96px);
+		inset: 0;
 		pointer-events: none;
 		z-index: 1;
-		/* The bands written out as one long gradient (not a repeating one,
-		   which Chrome draws as tiles that leave a seam on a moving layer). */
-		background: linear-gradient(110deg, #ff4d4d 0px, #ffa64d 15px, #fff24d 30px, #66ff66 45px, #4dd2ff 60px, #8c66ff 75px, #ff4d4d 90px, #ffa64d 105px, #fff24d 120px, #66ff66 135px, #4dd2ff 150px, #8c66ff 165px, #ff4d4d 180px, #ffa64d 195px, #fff24d 210px, #66ff66 225px, #4dd2ff 240px, #8c66ff 255px, #ff4d4d 270px, #ffa64d 285px, #fff24d 300px, #66ff66 315px, #4dd2ff 330px, #8c66ff 345px, #ff4d4d 360px, #ffa64d 375px, #fff24d 390px, #66ff66 405px, #4dd2ff 420px, #8c66ff 435px, #ff4d4d 450px, #ffa64d 465px, #fff24d 480px, #66ff66 495px, #4dd2ff 510px, #8c66ff 525px, #ff4d4d 540px, #ffa64d 555px, #fff24d 570px, #66ff66 585px, #4dd2ff 600px, #8c66ff 615px, #ff4d4d 630px, #ffa64d 645px, #fff24d 660px, #66ff66 675px, #4dd2ff 690px, #8c66ff 705px, #ff4d4d 720px);
+		/* The bands slide inside the card (background-position), repainting
+		   just the card: a moving layer this size gets cut into raster tiles,
+		   and on a scaled page their edges showed as a line across the card. */
+		background: no-repeat 0 0 / calc(100% + 96px) 100% linear-gradient(110deg, #ff4d4d 0px, #ffa64d 15px, #fff24d 30px, #66ff66 45px, #4dd2ff 60px, #8c66ff 75px, #ff4d4d 90px, #ffa64d 105px, #fff24d 120px, #66ff66 135px, #4dd2ff 150px, #8c66ff 165px, #ff4d4d 180px, #ffa64d 195px, #fff24d 210px, #66ff66 225px, #4dd2ff 240px, #8c66ff 255px, #ff4d4d 270px, #ffa64d 285px, #fff24d 300px, #66ff66 315px, #4dd2ff 330px, #8c66ff 345px, #ff4d4d 360px, #ffa64d 375px, #fff24d 390px, #66ff66 405px, #4dd2ff 420px, #8c66ff 435px, #ff4d4d 450px, #ffa64d 465px, #fff24d 480px, #66ff66 495px, #4dd2ff 510px, #8c66ff 525px, #ff4d4d 540px, #ffa64d 555px, #fff24d 570px, #66ff66 585px, #4dd2ff 600px, #8c66ff 615px, #ff4d4d 630px, #ffa64d 645px, #fff24d 660px, #66ff66 675px, #4dd2ff 690px, #8c66ff 705px, #ff4d4d 720px);
 		opacity: 0.6;
 		mix-blend-mode: overlay;
 		animation: foil 2.6s linear infinite;
-		will-change: transform;
 	}
 
 	.shine.phantom {
@@ -91,10 +87,10 @@
 	}
 	@keyframes foil {
 		from {
-			transform: translateX(0);
+			background-position: 0 0;
 		}
 		to {
-			transform: translateX(-95.78px);
+			background-position: -95.78px 0;
 		}
 	}
 	/* ---- The animated editions. Each moves by transform or opacity only, so

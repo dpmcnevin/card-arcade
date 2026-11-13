@@ -49,6 +49,16 @@ class Arcade {
 		}
 	}
 
+	/** The deck a game's saved run was started with ('' if none saved). */
+	savedDeck(id: string): string {
+		try {
+			const s = JSON.parse(localStorage.getItem(KEY(id)) ?? 'null');
+			return s ? (s.deck ?? 'standard') : '';
+		} catch {
+			return '';
+		}
+	}
+
 	/** The starting deck picked for each game. */
 	decks = $state<Record<string, string>>((() => {
 		try {

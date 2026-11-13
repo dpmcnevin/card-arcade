@@ -125,6 +125,10 @@
 					<button class="arrow" title="Next deck" onclick={() => cycle(g.module.id, g.module, 1)}><span class="tri right"></span></button>
 				</div>
 				{#if arcade.saved(g.module.id)}
+					{@const was = arcade.savedDeck(g.module.id)}
+					{#if was && was !== deck.key}
+						<div class="decknote">Continue keeps your run's {R.allDecks(g.module).find((d) => d.key === was)?.name ?? 'deck'}; the {deck.name} is for a new run</div>
+					{/if}
 					<Button onclick={() => arcade.start(g.module.id, true)} style="width: 100%">Continue</Button>
 				{/if}
 				<Button variant={arcade.saved(g.module.id) ? 'plain' : 'brass'} onclick={() => arcade.start(g.module.id)} style="width: 100%">New run</Button>
@@ -359,5 +363,11 @@
 	}
 	.tri.right {
 		clip-path: polygon(0 0, 100% 50%, 0 100%);
+	}
+	.decknote {
+		margin: -2px 0 2px;
+		font-size: 13px;
+		color: var(--brass);
+		text-align: center;
 	}
 </style>
