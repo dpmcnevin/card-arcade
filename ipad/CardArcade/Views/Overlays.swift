@@ -196,9 +196,9 @@ struct DeckView: View {
         let suits = Array(Set(v.pack.map(\.suit))).sorted { a, b in
             (v.pack.first { $0.suit == a }?.suitOrder ?? 0) < (v.pack.first { $0.suit == b }?.suitOrder ?? 0)
         }
-        let rows = suits.map { s in v.pack.filter { $0.suit == s }.sorted { $0.rankOrder > $1.rankOrder } }
-        let cols = Double(max(13, rows.map(\.count).max() ?? 13))
-        let w = min(62, (900 - (cols - 1) * 4) / cols)
+        // A row per suit, wrapping after 14 (Tarot's trumps, Whist 22's whole pack).
+        let rows = suits.flatMap { s in v.pack.filter { $0.suit == s }.sorted { $0.rankOrder > $1.rankOrder }.chunked(14) }
+        let w = (900 - 13 * 4) / 14.0
         ZStack {
             Color.black.opacity(0.55).ignoresSafeArea().onTapGesture { model.showDeck = false }
             Panel {

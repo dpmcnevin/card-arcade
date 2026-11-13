@@ -369,3 +369,10 @@ struct FlowRow: Layout {
     }
 }
 
+
+extension Array {
+    /// The array in pieces of at most `n`, in order.
+    func chunked(_ n: Int) -> [[Element]] {
+        stride(from: 0, to: count, by: n).map { Array(self[$0..<Swift.min($0 + n, count)]) }
+    }
+}

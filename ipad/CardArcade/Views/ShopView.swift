@@ -286,8 +286,8 @@ struct CardPickerView: View {
         let suits = Array(Set(v.pack.map(\.suit))).sorted { a, b in
             (v.pack.first { $0.suit == a }?.suitOrder ?? 0) < (v.pack.first { $0.suit == b }?.suitOrder ?? 0)
         }
-        let rows = suits.map { s in v.pack.filter { $0.suit == s }.sorted { $0.rankOrder < $1.rankOrder } }
-        let cols = max(13, rows.map(\.count).max() ?? 13)
+        let rows = suits.flatMap { s in v.pack.filter { $0.suit == s }.sorted { $0.rankOrder < $1.rankOrder }.chunked(14) }
+        let cols = 14
         ZStack {
             Color.black.opacity(0.55).ignoresSafeArea().onTapGesture { model.pickerSlot = nil }
             Panel {
