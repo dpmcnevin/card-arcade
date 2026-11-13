@@ -92,3 +92,25 @@ test('debug actions are recorded and replay to the same run', async () => {
 	assert.equal(again.relics.length, 1);
 	assert.deepEqual(again.ploys, ['windfall']);
 });
+
+test('the animated card editions score as they say', async () => {
+	const C = await import('../src/run/content.ts');
+	const run = R.newRun(hearts, 'EDITIONS-1');
+	const card = run.pack[0];
+	const score = (edition, p) => {
+		run.mods = {};
+		R.setMod(run, card, { edition });
+		return R.pipeline(run, { title: 't', made: true, lines: [{ label: 'base', chips: 100 }], ctx: {}, levels: [], played: [{ card, mine: true, wonByUs: true, winning: false, ...p }] });
+	};
+	assert.equal(score('molten', { winning: true }).mult, 1.75);
+	assert.equal(score('molten', { winning: false }).mult, 1);
+	assert.equal(score('frost', { wonByUs: false }).mult, 3);
+	assert.equal(score('frost', { wonByUs: true }).mult, 1);
+	assert.equal(score('neon', {}).money, 1);
+	const s1 = score('static', {}).chips, s2 = score('static', {}).chips;
+	assert.ok(s1 >= 100 && s1 <= 150, 'static adds 0 to 50');
+	assert.equal(s1, s2, 'static is the same on a replay');
+	assert.equal(score('static', { mine: false }).chips, 100, 'only your own cards');
+	const total = Object.values(C.CARD_EDITIONS).reduce((n, e) => n + e.weight, 0);
+	assert.ok(Math.abs(total - 1) < 1e-9, 'edition weights add to 1');
+});

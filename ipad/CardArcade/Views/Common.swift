@@ -212,13 +212,19 @@ enum Edition {
         case "lacquered": Color(hex: 0xe8573f)
         case "prismatic": Color(hex: 0xd88cff)
         case "phantom": Color(hex: 0x9fb0ff)
+        case "static": Color(hex: 0xc4c4cc)
+        case "molten": Color(hex: 0xff7a2a)
+        case "frost": Color(hex: 0x8fd8ff)
+        case "neon": Color(hex: 0xff4fd8)
         default: Theme.inkDim
         }
     }
 }
 
-/// The look of a relic edition over its icon: a moving sheen of engraved
-/// silver, a red gloss, a turning rainbow, or a pale see-through ghost.
+/// The look of an edition over a card or relic icon: a moving sheen of
+/// engraved silver, a red gloss, a drifting rainbow foil, TV static, glowing
+/// magma, frost and sparkles, a buzzing neon tube, or a pale ghost (Phantom).
+/// As on the web.
 struct EditionShine: ViewModifier {
     let edition: String?
 
@@ -259,11 +265,77 @@ struct EditionShine: ViewModifier {
                 Color(hex: 0xe8573f).opacity(0.3).blendMode(.overlay)
                 band.blendMode(.screen)
             }
-        default: // prismatic
+        case "static":
+            // TV snow, redrawn ten times a second, and scanlines rolling down.
             ZStack {
-                AngularGradient(colors: [.red, .orange, .yellow, .green, .cyan, .blue, .purple, .red],
-                                center: .center, angle: .degrees(t * 120))
-                    .opacity(0.65).blendMode(.overlay)
+                Canvas { g, size in
+                    var rng = SplitMix(seed: UInt64(t * 10))
+                    let px = 3.0
+                    for y in stride(from: 0.0, to: size.height, by: px) {
+                        for x in stride(from: 0.0, to: size.width, by: px) {
+                            let v = rng.next()
+                            g.fill(Path(CGRect(x: x, y: y, width: px, height: px)), with: .color(Color(white: v)))
+                        }
+                    }
+                }
+                .opacity(0.45).blendMode(.overlay)
+                Canvas { g, size in
+                    let off = (t * 12).truncatingRemainder(dividingBy: 5)
+                    for y in stride(from: off - 5, to: size.height, by: 5) {
+                        g.fill(Path(CGRect(x: 0, y: y, width: size.width, height: 2)), with: .color(.black.opacity(0.22)))
+                    }
+                }
+            }
+        case "molten":
+            // Magma glowing, swelling and fading like heat.
+            let k = 0.5 + 0.5 * sin(t * 2.6)
+            ZStack {
+                RadialGradient(colors: [Color(hex: 0xff5a14), .clear], center: UnitPoint(x: 0.3, y: 0.75), startRadius: 0, endRadius: 60)
+                RadialGradient(colors: [Color(hex: 0xffaa28), .clear], center: UnitPoint(x: 0.75, y: 0.25), startRadius: 0, endRadius: 50)
+                LinearGradient(colors: [Color(hex: 0xff781e).opacity(0.4), Color(hex: 0xc81e0a).opacity(0.6)], startPoint: .top, endPoint: .bottom)
+            }
+            .scaleEffect(1 + 0.08 * k)
+            .opacity(0.45 + 0.4 * k)
+            .blendMode(.multiply)
+        case "frost":
+            // A cold tint, and sparkles twinkling.
+            let k = (t / 0.55).rounded(.down).truncatingRemainder(dividingBy: 2) == 0 ? 0.35 : 1.0
+            ZStack {
+                LinearGradient(colors: [Color(red: 0.59, green: 0.8, blue: 1), Color(red: 0.84, green: 0.93, blue: 1), Color(red: 0.55, green: 0.76, blue: 1)],
+                               startPoint: .topLeading, endPoint: .bottomTrailing)
+                    .opacity(0.75).blendMode(.multiply)
+                GeometryReader { geo in
+                    ForEach(Array([(0.18, 0.22), (0.72, 0.14), (0.56, 0.48), (0.28, 0.7), (0.82, 0.78), (0.44, 0.9)].enumerated()), id: \.offset) { i, p in
+                        Circle().fill(.white)
+                            .frame(width: i % 2 == 0 ? 4 : 3, height: i % 2 == 0 ? 4 : 3)
+                            .shadow(color: Color(red: 0.27, green: 0.63, blue: 1), radius: 2)
+                            .position(x: geo.size.width * p.0, y: geo.size.height * p.1)
+                            .opacity(i % 2 == 0 ? k : 1.35 - k)
+                    }
+                }
+            }
+        case "neon":
+            // A glowing tube round the card that buzzes and flickers.
+            let phase = t.truncatingRemainder(dividingBy: 3.2) / 3.2
+            let flicker = (0.06...0.08).contains(phase) ? 0.25 : (0.56...0.58).contains(phase) ? 0.45 : 1
+            ZStack {
+                Rectangle().strokeBorder(Color(hex: 0xff4fd8), lineWidth: 2)
+                Rectangle().strokeBorder(Color(hex: 0x4fe7ff).opacity(0.55), lineWidth: 2).padding(2)
+                Rectangle().strokeBorder(Color(hex: 0xff4fd8).opacity(0.6), lineWidth: 6).blur(radius: 5)
+            }
+            .opacity(flicker)
+        default: // prismatic: rainbow foil bands drifting across, no spin
+            let shift = (t / 2.6).truncatingRemainder(dividingBy: 1)
+            ZStack {
+                GeometryReader { geo in
+                    let w = max(geo.size.width, geo.size.height) * 3
+                    LinearGradient(colors: [.red, .orange, .yellow, .green, .cyan, .purple, .red, .orange, .yellow, .green, .cyan, .purple, .red],
+                                   startPoint: .leading, endPoint: .trailing)
+                        .frame(width: w, height: w)
+                        .rotationEffect(.degrees(20))
+                        .offset(x: -w / 3 - shift * w / 2, y: -w / 3)
+                }
+                .opacity(0.6).blendMode(.overlay)
                 band.opacity(0.7).blendMode(.screen)
             }
         }

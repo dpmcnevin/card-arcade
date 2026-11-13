@@ -416,3 +416,24 @@ struct CollectionView: View {
             .background(PixelRect(radius: 6).fill(Theme.bg))
     }
 }
+
+#if DEBUG
+/// Debug builds: CA_EDITIONS=1 shows a card in each edition, to check their looks.
+struct EditionsPreview: View {
+    var body: some View {
+        let eds = ["etched", "lacquered", "prismatic", "static", "molten", "frost", "neon"]
+        HStack(spacing: 22) {
+            ForEach(eds, id: \.self) { e in
+                VStack(spacing: 10) {
+                    CardView(card: CardV(id: 1, suit: 1, rank: 7, code: "7C", key: "1-7", name: "seven of clubs", edition: e, seal: nil,
+                                         trump: false, suitOrder: 3, rankOrder: 7), faceUp: true)
+                        .scaleEffect(1.6).frame(width: 128, height: 180)
+                    Text(e).font(Theme.font(18)).foregroundStyle(Theme.ink)
+                }
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(Theme.felt)
+    }
+}
+#endif

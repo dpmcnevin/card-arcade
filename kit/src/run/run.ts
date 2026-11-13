@@ -648,7 +648,8 @@ export function pipeline<S>(run: Run, base: BaseScore<S>): Breakdown {
 	}
 	for (const p of base.played ?? []) {
 		const m = mod(run, p.card);
-		if (m.edition && p.mine) add(`${C.CARD_EDITIONS[m.edition].name} ${cards.name(p.card)}`, C.CARD_EDITIONS[m.edition].effect, m.edition);
+		const ced = m.edition && C.CARD_EDITIONS[m.edition];
+		if (ced && p.mine) add(`${ced.name} ${cards.name(p.card)}`, ced.play ? ced.play(p, run) : ced.effect, ced.key);
 		const seal = sealOf(run, p.card);
 		if (seal?.onPlayed) add(`${seal.name.replace(' Seal', '')} ${cards.name(p.card)}`, seal.onPlayed(p, run));
 	}

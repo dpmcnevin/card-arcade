@@ -51,7 +51,7 @@
 		const game = only ? ALL.find((g) => g.module.id === only) : null;
 		const pack = game?.module.newPack ? game.module.newPack() : cards.newDeck();
 		const deck = pack.sort(() => Math.random() - 0.5).slice(0, N);
-		return deck.map((card) => ({ card, edition: Math.random() < 0.35 ? (['etched', 'lacquered', 'prismatic'] as const)[Math.floor(Math.random() * 3)] : undefined }));
+		return deck.map((card) => ({ card, edition: Math.random() < 0.35 ? (['etched', 'lacquered', 'prismatic', 'static', 'molten', 'frost', 'neon'] as const)[Math.floor(Math.random() * 7)] : undefined }));
 	})();
 	import Button from './Button.svelte';
 	import * as R from '$kit/src/run/run.ts';

@@ -128,6 +128,9 @@ struct RootView: View {
                 }
                 .position(x: L.W - 90, y: 24).zIndex(110)
             }
+            #if DEBUG
+            if ProcessInfo.processInfo.environment["CA_EDITIONS"] != nil { EditionsPreview().frame(width: L.W, height: L.H).zIndex(450) }
+            #endif
             ToastView().zIndex(400)
             Particles().frame(width: L.W, height: L.H).zIndex(500)
         }

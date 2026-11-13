@@ -28,19 +28,36 @@ export interface PlayedCard {
 	winning: boolean;
 }
 
-export type CardEditionKey = 'etched' | 'lacquered' | 'prismatic';
+export type CardEditionKey = 'etched' | 'lacquered' | 'prismatic' | 'static' | 'molten' | 'frost' | 'neon';
 export interface CardEditionDef {
 	key: CardEditionKey;
 	name: string;
 	text: string;
 	cost: number;
 	effect: Effect;
+	/** An effect that depends on how the card was played (if set, used
+	 *  instead of `effect`). Must not draw from the run's RNG: scores are also
+	 *  worked out for previews, and replays must match. */
+	play?: (p: PlayedCard, run: Run) => Effect | null;
 	weight: number;
 }
+/** A stable 0..n roll for a card in this hand (Static's chips): the same on
+ *  every replay, different from card to card and hand to hand. */
+function cardRoll(p: PlayedCard, run: Run, n: number): number {
+	let h = ((p.card.id ?? p.card.suit * 100 + p.card.rank) * 2654435761) ^ (run.stats.hands * 40503 + run.board * 9973 + run.table * 131);
+	h = Math.imul(h ^ (h >>> 15), 2246822507);
+	h = Math.imul(h ^ (h >>> 13), 3266489909);
+	return ((h ^ (h >>> 16)) >>> 0) % (n + 1);
+}
 export const CARD_EDITIONS: Record<CardEditionKey, CardEditionDef> = {
-	etched: { key: 'etched', name: 'Etched', text: '+15 chips when you play this card', cost: 3, effect: { chips: 15 }, weight: 0.45 },
-	lacquered: { key: 'lacquered', name: 'Lacquered', text: '+1 mult when you play this card', cost: 4, effect: { mult: 1 }, weight: 0.35 },
-	prismatic: { key: 'prismatic', name: 'Prismatic', text: 'x1.5 mult when you play this card', cost: 6, effect: { xmult: 1.5 }, weight: 0.2 }
+	etched: { key: 'etched', name: 'Etched', text: '+15 chips when you play this card', cost: 3, effect: { chips: 15 }, weight: 0.3 },
+	lacquered: { key: 'lacquered', name: 'Lacquered', text: '+1 mult when you play this card', cost: 4, effect: { mult: 1 }, weight: 0.22 },
+	prismatic: { key: 'prismatic', name: 'Prismatic', text: 'x1.5 mult when you play this card', cost: 6, effect: { xmult: 1.5 }, weight: 0.12 },
+	// The animated editions: each plays differently.
+	static: { key: 'static', name: 'Static', text: '+0 to +50 chips when you play this card, at random', cost: 4, effect: {}, play: (p, run) => ({ chips: cardRoll(p, run, 50) }), weight: 0.1 },
+	molten: { key: 'molten', name: 'Molten', text: 'x1.75 mult when this card wins the trick', cost: 6, effect: {}, play: (p) => (p.winning ? { xmult: 1.75 } : null), weight: 0.08 },
+	frost: { key: 'frost', name: 'Frost', text: '+2 mult when this card is in a trick your side loses', cost: 4, effect: {}, play: (p) => (!p.wonByUs ? { mult: 2 } : null), weight: 0.1 },
+	neon: { key: 'neon', name: 'Neon', text: 'Earn $1 each time you play this card', cost: 5, effect: { money: 1 }, weight: 0.08 }
 };
 export const rollCardEdition = (rng: RNG) => CARD_EDITIONS[weighted(rng, CARD_EDITIONS, 'etched')];
 
