@@ -87,6 +87,14 @@
 			transform: rotate(360deg);
 		}
 	}
+	/* Stepped: the shine jumps a pixel-art step at a time (a dozen frames a
+	   sweep), which a browser without a GPU draws far more cheaply. */
+	:global(.stepped) .shine::after {
+		animation-timing-function: steps(12);
+	}
+	:global(.stepped) .shine.prismatic::before {
+		animation-timing-function: steps(24);
+	}
 	@media (prefers-reduced-motion: reduce) {
 		.shine::after,
 		.shine.prismatic::before {

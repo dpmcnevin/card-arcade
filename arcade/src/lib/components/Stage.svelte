@@ -85,7 +85,7 @@
 			{/if}
 		{/if}
 	</div>
-	<div class="stage" class:smooth={!settings.pixel} class:portrait={L.portrait} style="{cssVars(L)}; width: {L.W}px; height: {L.H}px" style:transform="scale({scale}) translate({fx.shakeX}px, {fx.shakeY}px)">
+	<div class="stage" class:smooth={!settings.pixel} class:stepped={settings.stepped} class:portrait={L.portrait} style="{cssVars(L)}; width: {L.W}px; height: {L.H}px" style:transform="scale({scale}) translate({fx.shakeX}px, {fx.shakeY}px)">
 		{#if arcade.screen === 'menu' || !run || !ui}
 			<Menu {only} />
 		{:else}

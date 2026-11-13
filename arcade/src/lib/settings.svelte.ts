@@ -11,6 +11,8 @@ class Settings {
 	fourColor = $state(false);
 	/** Pixel-art cards, or smooth ones. */
 	pixel = $state(true);
+	/** Edition shine moves in pixel steps (much cheaper without a GPU). */
+	stepped = $state(false);
 
 	constructor() {
 		try {
@@ -20,10 +22,11 @@ class Settings {
 			if (typeof s.speed === 'number') this.speed = s.speed;
 			if (typeof s.fourColor === 'boolean') this.fourColor = s.fourColor;
 			if (typeof s.pixel === 'boolean') this.pixel = s.pixel;
+			if (typeof s.stepped === 'boolean') this.stepped = s.stepped;
 		} catch {}
 	}
 
-	toggle(k: 'music' | 'sfx' | 'fourColor' | 'pixel'): boolean {
+	toggle(k: 'music' | 'sfx' | 'fourColor' | 'pixel' | 'stepped'): boolean {
 		this[k] = !this[k];
 		this.store();
 		return this[k];
@@ -36,7 +39,7 @@ class Settings {
 
 	private store() {
 		try {
-			localStorage.setItem(KEY, JSON.stringify({ music: this.music, sfx: this.sfx, speed: this.speed, fourColor: this.fourColor, pixel: this.pixel }));
+			localStorage.setItem(KEY, JSON.stringify({ music: this.music, sfx: this.sfx, speed: this.speed, fourColor: this.fourColor, pixel: this.pixel, stepped: this.stepped }));
 		} catch {}
 	}
 }

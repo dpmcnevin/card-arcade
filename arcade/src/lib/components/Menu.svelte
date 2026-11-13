@@ -136,6 +136,7 @@
 	<div class="settings">
 		<Button variant="plain" size="sm" onclick={() => settings.toggle('fourColor')} style="width: 120px">{settings.fourColor ? '4 colors' : '2 colors'}</Button>
 		<Button variant="plain" size="sm" onclick={() => settings.toggle('pixel')} style="width: 120px">{settings.pixel ? 'Pixel' : 'Smooth'}</Button>
+		<Button variant="plain" size="sm" onclick={() => settings.toggle('stepped')} style="width: 150px" title="How the shine on enhanced cards moves: smooth, or in pixel steps (much lighter on the CPU)">{settings.stepped ? 'Shine: stepped' : 'Shine: smooth'}</Button>
 	</div>
 	{#if scattered}<div class="tidy"><Button variant="plain" size="sm" onclick={tidy}>Tidy the cards</Button></div>{/if}
 	{#if showing}<Collection ui={showing} close={() => (showing = null)} />{/if}
