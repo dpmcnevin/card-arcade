@@ -196,9 +196,22 @@ struct DeckView: View {
         let suits = Array(Set(v.pack.map(\.suit))).sorted { a, b in
             (v.pack.first { $0.suit == a }?.suitOrder ?? 0) < (v.pack.first { $0.suit == b }?.suitOrder ?? 0)
         }
-        // A row per suit, wrapping after 14 (Tarot's trumps, Whist 22's whole pack).
-        let rows = suits.flatMap { s in v.pack.filter { $0.suit == s }.sorted { $0.rankOrder > $1.rankOrder }.chunked(14) }
-        let w = (900 - 13 * 4) / 14.0
+        // Fill the screen: a row per suit, wrapped at however many columns
+        // makes the cards biggest for both the width and the height (the
+        // header and the card note take the rest).
+        let L = model.layout
+        let panelW = L.W - 40, panelH = L.H - 40
+        let gap = 6.0
+        let groups = suits.map { s in v.pack.filter { $0.suit == s }.sorted { $0.rankOrder > $1.rankOrder } }
+        let fit = { (cols: Int) -> Double in
+            let n = groups.reduce(0) { $0 + ($1.count + cols - 1) / cols }
+            let byWidth = (panelW - 44 - Double(cols - 1) * gap) / Double(cols)
+            let byHeight = ((panelH - 36 - 60 - 30) - Double(n - 1) * 10) / Double(max(1, n)) / 1.4
+            return min(byWidth, byHeight)
+        }
+        let cols = (6...max(6, groups.map(\.count).max() ?? 13)).max { fit($0) < fit($1) } ?? 14
+        let rows = groups.flatMap { $0.chunked(cols) }
+        let w = fit(cols)
         ZStack {
             Color.black.opacity(0.55).ignoresSafeArea().onTapGesture { model.showDeck = false }
             Panel {
@@ -208,18 +221,18 @@ struct DeckView: View {
                         Spacer()
                         GameButton("Close", style: .plain, size: .small) { model.showDeck = false }.frame(width: 110)
                     }
-                    VStack(alignment: .leading, spacing: 8) {
+                    VStack(alignment: .leading, spacing: 10) {
                         ForEach(Array(rows.enumerated()), id: \.offset) { _, row in
-                            HStack(spacing: 4) {
+                            HStack(spacing: gap) {
                                 ForEach(row) { c in
                                     PixelImage(image: model.art.card(c, trump: c.trump, fourColor: model.fourColor))
                                         .modifier(EditionShine(edition: c.edition))
                                         .frame(width: w, height: w * 1.4)
                                         .overlay(alignment: .bottomLeading) {
-                                            if let e = c.edition { Rectangle().fill(Edition.color(e)).frame(width: w * 0.3, height: 5).offset(x: 2, y: 3) }
+                                            if let e = c.edition { Rectangle().fill(Edition.color(e)).frame(width: w * 0.3, height: 6).offset(x: 3, y: 4) }
                                         }
                                         .overlay(alignment: .topTrailing) {
-                                            if let s = c.seal { SealBadge(seal: s, size: 16).offset(x: 3, y: -3) }
+                                            if let s = c.seal { SealBadge(seal: s, size: w * 0.3).offset(x: 4, y: -4) }
                                         }
                                         .overlay { if looking?.id == c.id { PixelRect(radius: 4).stroke(Theme.brass, lineWidth: 2).padding(-2) } }
                                         .opacity(played.contains(c.key) ? 0.3 : 1)
@@ -228,6 +241,7 @@ struct DeckView: View {
                             }
                         }
                     }
+                    Spacer(minLength: 0)
                     if let c = looking {
                         HStack(alignment: .top, spacing: 14) {
                             SmallCard(card: c, scale: 0.9)
@@ -239,8 +253,13 @@ struct DeckView: View {
                                 if c.edition == nil && c.seal == nil { Text("A plain card: no edition, no seal.").font(Theme.font(15)).foregroundStyle(Theme.inkDim) }
                             }
                         }
-                        .padding(10)
-                        .background(PixelRect(radius: 6).fill(Theme.bg))
+                        .padding(12)
+                        .frame(width: 520, alignment: .leading)
+                        .background(PixelRect(radius: 6).fill(Theme.bg).shadow(color: .black.opacity(0.5), radius: 0, x: 3, y: 5))
+                        .overlay(PixelRect(radius: 6).stroke(Theme.brass, lineWidth: 2))
+                        .frame(maxWidth: .infinity, alignment: .trailing)
+                        .padding(.top, -150) // floats over the last row rather than taking room
+                        .onTapGesture { looking = nil }
                     } else {
                         Text("Tap a card to read it. Cards played this hand are greyed.").font(Theme.font(14)).foregroundStyle(Theme.inkFaint)
                     }
@@ -248,7 +267,7 @@ struct DeckView: View {
                 .padding(.horizontal, 22).padding(.vertical, 18)
                 .foregroundStyle(Theme.ink)
             }
-            .frame(width: 960)
+            .frame(width: panelW, height: panelH)
         }
     }
 }

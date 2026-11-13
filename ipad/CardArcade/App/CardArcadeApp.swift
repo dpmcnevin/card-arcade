@@ -18,7 +18,7 @@ struct CardArcadeApp: App {
                         let env = ProcessInfo.processInfo.environment
                         if let g = env["CA_AUTOPLAY"] { model.autoplay(g) }
                         // CA_START=<game>: a new run, straight to the table (layout checks).
-                        if let g = env["CA_START"] { model.start(g, resume: false); model.showOverview = false }
+                        if let g = env["CA_START"] { model.start(g, resume: false); model.showOverview = false; model.showDeck = env["CA_DECK"] != nil }
                     }
                     #endif
             } else {
