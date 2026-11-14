@@ -1,11 +1,21 @@
-// A Whist 22 player that aims to take exactly its bid. It bids from the odds
-// that each card wins its trick (in the one-card round, from the cards it can
-// see on everyone else's forehead), then in play it ducks with its highest
-// safe card once it has enough, takes cheaply when it needs more, and keeps
-// the Fool to fix the count at the end (22 to win, 0 to lose).
+// A Whist 22 player that aims to take exactly its bid.
+//
+// It thinks ahead by playing the round out in its head: for each bid it may
+// make, and each card it may play, it deals the cards it can't see at random
+// many times, plays the rest of the round with a quick rule-of-thumb player
+// (below), and keeps the choice that comes out exact most often. Its random
+// draws come from a seed made of the position, so the same position always
+// gets the same answer (a saved run replays exactly).
+//
+// The rule-of-thumb player bids from the odds that each card wins its trick
+// (in the one-card round, from the cards it can see on everyone else's
+// forehead), and in play ducks with its highest safe card once it has enough,
+// takes cheaply when it needs more, and keeps the Fool to fix the count at
+// the end (22 to win, 0 to lose).
 
 import * as cards from '../../src/core/rules/cards.ts';
 import * as W from './rules.ts';
+import { newRng, type RNG } from '../../src/core/rules/rng.ts';
 import type { Card } from '../../src/core/rules/cards.ts';
 import type { WhistHand } from './rules.ts';
 
@@ -33,7 +43,8 @@ function allowed(h: WhistHand, seat: number, want: number): number {
 	return opts.reduce((a, b) => (Math.abs(b - want) < Math.abs(a - want) ? b : a));
 }
 
-export function chooseBid(h: WhistHand, seat: number): number {
+/** The rule-of-thumb bid (no lookahead). */
+export function quickBid(h: WhistHand, seat: number): number {
 	if (h.blind) {
 		// You see everyone's card but your own: bid 1 if yours probably beats them.
 		const seen = [1, 2, 3, 4].filter((s) => s !== seat).map((s) => h.hands[s][0]);
@@ -56,7 +67,8 @@ export interface Move {
 	fool?: number;
 }
 
-export function chooseCard(h: WhistHand, seat: number): Move {
+/** The rule-of-thumb card (no lookahead). */
+export function quickCard(h: WhistHand, seat: number): Move {
 	const hand = h.hands[seat];
 	const fool = hand.find(W.isFool);
 	const plain = hand.filter((c) => !W.isFool(c)).sort((a, b) => a.rank - b.rank);
@@ -92,4 +104,96 @@ export function chooseCard(h: WhistHand, seat: number): Move {
 	const losers = plain.filter((c) => c.rank < top);
 	if (losers.length) return { card: losers[0] };
 	return { card: plain[0] ?? fool!, fool: plain.length ? undefined : 0 };
+}
+
+// ------------------------------------------------------------------ lookahead
+
+/** Simulated rounds per choice. */
+const BID_SAMPLES = 40;
+const CARD_SAMPLES = 32;
+
+/** A seed from everything this seat can see, so the same position always
+ *  draws the same random deals. */
+function seedFor(h: WhistHand, seat: number, what: string): RNG {
+	const mine = h.hands[seat].map((c) => c.rank).join(',');
+	const seen = [...h.tricks.flatMap((t) => t.plays), ...h.trick].map((p) => `${p.seat}:${p.card.rank}:${p.value}`).join(',');
+	return newRng(`w22|${what}|${seat}|${h.size}|${h.dealer}|${mine}|${h.bids.join(',')}|${seen}`);
+}
+
+/** A copy of a round to play out in the head. Cards are never changed in
+ *  play (only moved between arrays), so copying the arrays is enough; and a
+ *  bare JavaScriptCore (the iPad) has no structuredClone. */
+function copy(h: WhistHand): WhistHand {
+	return { ...h, hands: h.hands.map((x) => x.slice()), bids: h.bids.slice(), trick: h.trick.slice(), tricks: h.tricks.slice(), won: h.won.slice(), undealt: h.undealt.slice() };
+}
+
+/** A copy of the round as this seat might imagine it: the cards it can't see
+ *  (other hands and the undealt) shuffled and dealt back out. */
+function imagine(h: WhistHand, seat: number, rng: RNG): WhistHand {
+	const c = copy(h);
+	const others = [1, 2, 3, 4].filter((s) => s !== seat);
+	const pool = rng.shuffle([...others.flatMap((s) => c.hands[s]), ...c.undealt]);
+	let k = 0;
+	for (const s of others) c.hands[s] = c.hands[s].map(() => pool[k++]);
+	c.undealt = pool.slice(k);
+	return c;
+}
+
+/** Finish the round with the rule-of-thumb player in every seat. */
+function playOutQuick(h: WhistHand) {
+	while (h.stage === 'bid') W.bid(h, h.turn, quickBid(h, h.turn));
+	while (!h.complete) {
+		const m = quickCard(h, h.turn);
+		W.play(h, h.turn, m.card, m.fool);
+	}
+}
+
+/** The bid that comes out exact most often over simulated rounds (ties go
+ *  to the rule-of-thumb bid). In the one-card round you can't see your own
+ *  card, so it bids by what's on the others' foreheads. */
+export function chooseBid(h: WhistHand, seat: number, lookahead = true): number {
+	const quick = quickBid(h, seat);
+	if (h.blind || !lookahead) return quick;
+	const options = Array.from({ length: h.size + 1 }, (_, i) => i).filter((b) => W.canBid(h, seat, b));
+	if (options.length === 1) return options[0];
+	const rng = seedFor(h, seat, 'bid');
+	const deals = Array.from({ length: BID_SAMPLES }, () => imagine(h, seat, rng));
+	let best = quick, bestN = -1;
+	for (const b of [quick, ...options.filter((x) => x !== quick)]) {
+		let n = 0;
+		for (const d of deals) {
+			const c = copy(d);
+			W.bid(c, seat, b);
+			playOutQuick(c);
+			if (c.won[seat] === b) n++;
+		}
+		if (n > bestN) [best, bestN] = [b, n];
+	}
+	return best;
+}
+
+/** The card (and the Fool's value) that makes the bid most often over
+ *  simulated rounds (ties go to the rule-of-thumb card). */
+export function chooseCard(h: WhistHand, seat: number, lookahead = true): Move {
+	const quick = quickCard(h, seat);
+	const hand = h.hands[seat];
+	if (hand.length <= 1 || h.blind || !lookahead) return quick;
+	const moves: Move[] = hand.flatMap((c) => (W.isFool(c) ? [{ card: c, fool: 0 }, { card: c, fool: 22 }] : [{ card: c }]));
+	const same = (a: Move, b: Move) => a.card === b.card && (a.fool ?? -1) === (b.fool ?? -1);
+	const ordered = [moves.find((m) => same(m, quick)) ?? quick, ...moves.filter((m) => !same(m, quick))];
+	const rng = seedFor(h, seat, 'card');
+	const deals = Array.from({ length: CARD_SAMPLES }, () => imagine(h, seat, rng));
+	let best = ordered[0], bestN = -1;
+	for (const m of ordered) {
+		let n = 0;
+		const at = hand.indexOf(m.card);
+		for (const d of deals) {
+			const c = copy(d);
+			W.play(c, seat, c.hands[seat][at], m.fool);
+			playOutQuick(c);
+			if (c.won[seat] === c.bids[seat]) n++;
+		}
+		if (n > bestN) [best, bestN] = [m, n];
+	}
+	return best;
 }

@@ -43,8 +43,9 @@ const round5 = (n: number) => (n < 100 ? Math.round(n / 5) * 5 : Math.round(n / 
 
 function aiCtx(run: Run, rng = run.rng, seat = 0): ai.AIContext {
 	// The Cartel: every opponent pushes points onto you; the Shark: North does, sharply.
-	if (R.bossIs(run, 'cartel') || (R.bossIs(run, 'shark') && seat === H.NORTH)) return { rng, skill: 1, plausible: false, target: H.PLAYER };
-	return { rng, skill: 0.85 + 0.015 * run.table, plausible: true };
+	const smart = R.smartAI(run);
+	if (R.bossIs(run, 'cartel') || (R.bossIs(run, 'shark') && seat === H.NORTH)) return { rng, skill: 1, plausible: false, target: H.PLAYER, smart };
+	return { rng, skill: 0.85 + 0.015 * run.table, plausible: true, smart };
 }
 
 function advanceAI(run: Run<HeartsHand>) {

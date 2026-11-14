@@ -94,7 +94,7 @@ class Arcade {
 		if (!save) {
 			const deck = this.decks[id] ?? 'standard';
 			this.run = R.newRun(ui.module, undefined, { deck });
-			save = { version: 1, game: id, seed: this.run.seed, deck, actions: [] };
+			save = { version: 1, game: id, seed: this.run.seed, deck, ai: R.AI_VERSION, actions: [] };
 		}
 		this.save = save;
 		this.ui = ui;

@@ -27,6 +27,8 @@ export interface Save {
 	seed: string | number;
 	/** The starting deck (Standard if absent). */
 	deck?: string;
+	/** The AI version the run was played against (R.AI_VERSION; 1 if absent). */
+	ai?: number;
 	actions: Action[];
 }
 
@@ -77,7 +79,8 @@ export function undo(save: Save): Save | null {
 
 export function replay(module: GameModule, save: Save): Run {
 	if (save.game !== module.id) throw new Error(`save is for ${save.game}, not ${module.id}`);
-	const run = R.newRun(module, save.seed, { deck: save.deck });
+	// The AI it was played against (the first hand's AI moves happen as the run starts).
+	const run = R.newRun(module, save.seed, { deck: save.deck, ai: save.ai ?? 1 });
 	for (const a of save.actions) apply(run, a);
 	return run;
 }

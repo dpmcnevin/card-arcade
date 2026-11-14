@@ -332,6 +332,14 @@ export interface Run<H = any> {
 	ext: Record<string, any>;
 }
 
+/** Which AI the opponents play with. A save records it, so a run saved under
+ *  an older AI replays with that AI (the cards it chose then): runs made
+ *  before this existed replay with version 1. 2: Whist 22 thinks ahead;
+ *  Hearts plays the first trick and its discards better. */
+export const AI_VERSION = 2;
+/** Is this run on the newer AI? */
+export const smartAI = (run: Run) => (run.ext.ai ?? 1) >= 2;
+
 export const RELIC_SLOTS = 5;
 export const PLOY_SLOTS = 2;
 export const SHOP_SIZE = 4;
@@ -527,7 +535,7 @@ export function relicSlots(run: Run): number {
 
 // ------------------------------------------------------------------ new run
 
-export function newRun<H>(module: GameModule<H>, seed?: string | number, opts: { money?: number; deck?: string } = {}): Run<H> {
+export function newRun<H>(module: GameModule<H>, seed?: string | number, opts: { money?: number; deck?: string; ai?: number } = {}): Run<H> {
 	seed = seed ?? randomSeedString(newRng());
 	const base = module.newPack?.() ?? cards.newDeck();
 	const run: Run<H> = {
@@ -560,7 +568,7 @@ export function newRun<H>(module: GameModule<H>, seed?: string | number, opts: {
 		pendingTags: [],
 		endless: false,
 		stats: { hands: 0, made: 0, best: 0, total: 0, ploysUsed: 0, boardsSkipped: 0 },
-		ext: {}
+		ext: { ai: opts.ai ?? AI_VERSION }
 	};
 	allDecks(module).find((d) => d.key === run.deck)?.apply?.(run);
 	startBoard(run);

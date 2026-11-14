@@ -269,7 +269,7 @@ function start(id: string, s: Save | null, deck?: string | null) {
 	} else {
 		const d = deck && R.allDecks(g.module).some((x) => x.key === deck) ? deck : 'standard';
 		run = R.newRun(g.module, undefined, { deck: d });
-		save = { version: 1, game: id, seed: run.seed, deck: d, actions: [] };
+		save = { version: 1, game: id, seed: run.seed, deck: d, ai: R.AI_VERSION, actions: [] };
 	}
 	memo = {};
 	memoHand = -1;

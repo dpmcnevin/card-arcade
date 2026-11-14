@@ -57,6 +57,9 @@ export interface AIContext {
 	/** A card saved for one seat (bosses: the Widow, the Diamond Jack): when
 	 *  void, dump it only on a trick that seat is winning; otherwise keep it. */
 	saveFor?: { seat: number; card: (c: Card) => boolean };
+	/** The newer AI (R.AI_VERSION 2): a better first trick, cashing high
+	 *  spades over its own queen, and discards that shed dangerous high cards. */
+	smart?: boolean;
 }
 
 /** Is this hand strong enough to try for the moon? Lots of high cards,
@@ -184,6 +187,15 @@ function chooseFollow(state: HandState, seat: number, legal: Card[], ctx: AICont
 			const bigSpade = legal.filter((c) => c.suit === H.SPADES && c.rank > 12);
 			if (bigSpade.length > 0) return highest(bigSpade);
 		}
+		// High hearts next; then a high card in another suit, which would
+		// otherwise be forced to win a trick later; low hearts last (they're
+		// cheap, and easy to duck with).
+		if (ctx.smart) {
+			const highHearts = legal.filter((c) => c.suit === H.HEARTS && c.rank >= 11 && state.pts(c) > 0);
+			if (highHearts.length > 0) return highest(highHearts);
+			const danger = legal.filter((c) => state.pts(c) <= 0 && c.rank >= 12);
+			if (danger.length > 0) return highest(danger);
+		}
 		const pointy = legal.filter((c) => state.pts(c) > 0);
 		if (pointy.length > 0) return pointy.reduce((a, b) => (state.pts(b) > state.pts(a) || (state.pts(b) === state.pts(a) && b.rank > a.rank) ? b : a));
 		return highest(legal);
@@ -195,10 +207,21 @@ function chooseFollow(state: HandState, seat: number, legal: Card[], ctx: AICont
 		const above = legal.filter((c) => c.rank > win.card.rank);
 		if (above.length > 0) return lowest(above);
 	}
+	// The first trick carries no points: get rid of the highest card of the
+	// suit while it's free to.
+	if (ctx.smart && state.tricks.length === 0 && trickPts === 0) {
+		const nonQueen = legal.filter((c) => !H.isQueenOfSpades(c));
+		return highest(nonQueen.length > 0 ? nonQueen : legal);
+	}
 	// Spades with the queen in hand: drop her under the ace or king.
 	if (led === H.SPADES) {
 		const queen = legal.find(H.isQueenOfSpades);
 		if (queen && win.card.rank > 12) return queen;
+		// Holding her with the ace or king too: cash them while the trick is
+		// clean (no one else can drop the queen on it), so they can't later
+		// force you to win the trick she lands in.
+		const guards = legal.filter((c) => c.suit === H.SPADES && c.rank > 12);
+		if (ctx.smart && queen && guards.length > 0 && trickPts === 0) return highest(guards);
 	}
 	if (trickPts > 0 || !last) {
 		// Points on the table (or more cards to come): duck as high as we safely can.

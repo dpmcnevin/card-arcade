@@ -80,7 +80,7 @@ function runBids(run: Run<WhistHand>, stepwise = false) {
 	let guard = 0;
 	while (h.stage === 'bid' && h.turn !== W.PLAYER) {
 		if (++guard > 10) throw new Error('whist22: bidding stuck');
-		W.bid(h, h.turn, ai.chooseBid(h, h.turn));
+		W.bid(h, h.turn, ai.chooseBid(h, h.turn, R.smartAI(run)));
 	}
 	if (h.stage === 'play') {
 		run.phase = R.PHASE.PLAY;
@@ -90,11 +90,12 @@ function runBids(run: Run<WhistHand>, stepwise = false) {
 
 function runPlay(run: Run<WhistHand>) {
 	const h = run.hand;
-	aiUntil(() => h.complete || h.turn === W.PLAYER, () => void aiStep(h), 40, 'whist22: play');
+	aiUntil(() => h.complete || h.turn === W.PLAYER, () => void aiStep(run), 40, 'whist22: play');
 }
 
-function aiStep(h: WhistHand) {
-	const m = ai.chooseCard(h, h.turn);
+function aiStep(run: Run<WhistHand>) {
+	const h = run.hand;
+	const m = ai.chooseCard(h, h.turn, R.smartAI(run));
 	return W.play(h, h.turn, m.card, m.fool);
 }
 
@@ -264,7 +265,7 @@ export const whist22: GameModule<WhistHand, WhistAction, WhistCtx> = {
 			W.play(h, W.PLAYER, card, a.fool);
 			if (!stepwise) runPlay(run);
 		} else {
-			while (!h.complete) aiStep(h);
+			while (!h.complete) aiStep(run);
 		}
 	},
 	swapHand: {
@@ -301,7 +302,7 @@ export const whist22: GameModule<WhistHand, WhistAction, WhistCtx> = {
 		});
 	},
 	aiToMove: (run) => run.hand.stage === 'play' && !run.hand.complete && run.hand.turn !== W.PLAYER,
-	stepAI: (run) => (aiStep(run.hand) ? 'trick' : 'card'),
+	stepAI: (run) => (aiStep(run) ? 'trick' : 'card'),
 	score(run) {
 		const c = ctx(run);
 		// Rounds made in a row, and on this board (Hot Streak, The Emperor).
@@ -417,8 +418,8 @@ export const whist22: GameModule<WhistHand, WhistAction, WhistCtx> = {
 	},
 	bot(run) {
 		const h = run.hand;
-		if (run.phase === R.PHASE.PRE) return { t: 'bid', bid: ai.chooseBid(h, W.PLAYER) };
-		const m = ai.chooseCard(h, W.PLAYER);
+		if (run.phase === R.PHASE.PRE) return { t: 'bid', bid: ai.chooseBid(h, W.PLAYER, R.smartAI(run)) };
+		const m = ai.chooseCard(h, W.PLAYER, R.smartAI(run));
 		return { t: 'play', card: cards.code(m.card), fool: m.fool };
 	}
 };
