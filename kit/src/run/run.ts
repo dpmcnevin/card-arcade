@@ -336,9 +336,27 @@ export interface Run<H = any> {
  *  an older AI replays with that AI (the cards it chose then): runs made
  *  before this existed replay with version 1. 2: Whist 22 thinks ahead;
  *  Hearts plays the first trick and its discards better. */
-export const AI_VERSION = 2;
+export const AI_VERSION = 3;
 /** Is this run on the newer AI? */
 export const smartAI = (run: Run) => (run.ext.ai ?? 1) >= 2;
+/** Version 3: Tarot thinks ahead in play, and bids for how it now plays. */
+export const aiAtLeast = (run: Run, v: number) => (run.ext.ai ?? 1) >= v;
+
+/** A slow AI decision, remembered. The run keeps a tape of these (in the
+ *  save), so replaying a save reads them back instead of thinking again:
+ *  the decisions are deterministic, so the tape is only a cache, and an
+ *  entry that doesn't fit (`valid` false) is thought through afresh, with
+ *  everything after it dropped. */
+export function recall(run: Run, valid: (s: string) => boolean, compute: () => string): string {
+	const tape: string[] = (run.ext.tape ??= []);
+	const at: number = run.ext.tapeAt ?? 0;
+	run.ext.tapeAt = at + 1;
+	if (at < tape.length && valid(tape[at])) return tape[at];
+	tape.length = at;
+	const s = compute();
+	tape.push(s);
+	return s;
+}
 
 export const RELIC_SLOTS = 5;
 export const PLOY_SLOTS = 2;
@@ -535,7 +553,7 @@ export function relicSlots(run: Run): number {
 
 // ------------------------------------------------------------------ new run
 
-export function newRun<H>(module: GameModule<H>, seed?: string | number, opts: { money?: number; deck?: string; ai?: number } = {}): Run<H> {
+export function newRun<H>(module: GameModule<H>, seed?: string | number, opts: { money?: number; deck?: string; ai?: number; tape?: string[] } = {}): Run<H> {
 	seed = seed ?? randomSeedString(newRng());
 	const base = module.newPack?.() ?? cards.newDeck();
 	const run: Run<H> = {
@@ -568,7 +586,7 @@ export function newRun<H>(module: GameModule<H>, seed?: string | number, opts: {
 		pendingTags: [],
 		endless: false,
 		stats: { hands: 0, made: 0, best: 0, total: 0, ploysUsed: 0, boardsSkipped: 0 },
-		ext: { ai: opts.ai ?? AI_VERSION }
+		ext: { ai: opts.ai ?? AI_VERSION, tape: opts.tape?.slice() ?? [], tapeAt: 0 }
 	};
 	allDecks(module).find((d) => d.key === run.deck)?.apply?.(run);
 	startBoard(run);

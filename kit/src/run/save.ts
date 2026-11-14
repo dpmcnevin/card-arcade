@@ -30,6 +30,9 @@ export interface Save {
 	/** The AI version the run was played against (R.AI_VERSION; 1 if absent). */
 	ai?: number;
 	actions: Action[];
+	/** The slow AI decisions so far (R.recall), so a replay needn't think
+	 *  them through again. Only a cache: replays the same without it. */
+	tape?: string[];
 }
 
 export function apply(run: Run, a: Action) {
@@ -74,13 +77,16 @@ export function undo(save: Save): Save | null {
 	let i = save.actions.length - 1;
 	while (i >= 0 && !(save.actions[i].t === 'game' && (save.actions[i] as { a: { t?: string } }).a?.t === 'play')) i--;
 	if (i < 0) return null;
-	return { ...save, actions: [...save.actions.slice(0, i), { t: 'drop', key: 'undo' }] };
+	return { ...save, actions: [...save.actions.slice(0, i), { t: 'drop', key: 'undo' }], tape: save.tape?.slice() };
 }
 
 export function replay(module: GameModule, save: Save): Run {
 	if (save.game !== module.id) throw new Error(`save is for ${save.game}, not ${module.id}`);
 	// The AI it was played against (the first hand's AI moves happen as the run starts).
-	const run = R.newRun(module, save.seed, { deck: save.deck, ai: save.ai ?? 1 });
+	const run = R.newRun(module, save.seed, { deck: save.deck, ai: save.ai ?? 1, tape: save.tape });
 	for (const a of save.actions) apply(run, a);
+	// Decisions past where the actions reach (an Undo's, or the AI's moves
+	// after your last action) are thought through again when they come.
+	run.ext.tape.length = Math.min(run.ext.tape.length, run.ext.tapeAt);
 	return run;
 }

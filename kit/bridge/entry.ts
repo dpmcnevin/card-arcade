@@ -265,11 +265,11 @@ function start(id: string, s: Save | null, deck?: string | null) {
 	ui = g;
 	if (s) {
 		run = replay(g.module, s);
-		save = { ...s, actions: s.actions.slice() };
+		save = { ...s, actions: s.actions.slice(), tape: run.ext.tape };
 	} else {
 		const d = deck && R.allDecks(g.module).some((x) => x.key === deck) ? deck : 'standard';
 		run = R.newRun(g.module, undefined, { deck: d });
-		save = { version: 1, game: id, seed: run.seed, deck: d, ai: R.AI_VERSION, actions: [] };
+		save = { version: 1, game: id, seed: run.seed, deck: d, ai: R.AI_VERSION, actions: [], tape: run.ext.tape };
 	}
 	memo = {};
 	memoHand = -1;
@@ -285,8 +285,8 @@ function act(json: string): string {
 		const ok = R.canUsePloy(run, a.slot);
 		const back = ok[0] ? undo(save) : null;
 		if (!back) return JSON.stringify({ ok: false, error: `Can't: ${ok[1] ?? 'nothing to take back'}`, view: view() });
-		save = back;
 		run = replay(ui.module, back);
+		save = { ...back, tape: run.ext.tape };
 		return JSON.stringify({ ok: true, undone: true, phaseChanged: false, cue: null, view: view() });
 	}
 	try {

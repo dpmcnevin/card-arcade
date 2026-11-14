@@ -96,6 +96,8 @@ class Arcade {
 			this.run = R.newRun(ui.module, undefined, { deck });
 			save = { version: 1, game: id, seed: this.run.seed, deck, ai: R.AI_VERSION, actions: [] };
 		}
+		// The save keeps the run's own tape of AI decisions (it grows as they're made).
+		save.tape = this.run!.ext.tape;
 		this.save = save;
 		this.ui = ui;
 		this.runId = resume ? (this.profile(id).history.find((e) => e.seed === String(save!.seed))?.id ?? '') : '';
@@ -115,8 +117,8 @@ class Arcade {
 			const ok = R.canUsePloy(run, a.slot);
 			const back = ok[0] ? undo(this.save!) : null;
 			if (!back) return this.flash(`Can't: ${ok[1] ?? 'nothing to take back'}`);
-			this.save = back;
 			this.run = replay(this.ui!.module, back);
+			this.save = { ...back, tape: this.run.ext.tape };
 			this.picked = [];
 			this.persist();
 			this.v++;

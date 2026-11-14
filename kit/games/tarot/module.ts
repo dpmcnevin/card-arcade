@@ -78,7 +78,7 @@ function runBids(run: Run<TarotHand>, stepwise = false) {
 		}
 		if (h.stage === 'bid') {
 			if (h.turn === T.PLAYER) return;
-			T.bid(h, h.turn, ai.chooseBid(h, h.turn));
+			T.bid(h, h.turn, ai.chooseBid(h, h.turn, 0, R.aiAtLeast(run, 3)));
 			continue;
 		}
 		if (h.stage === 'dog') {
@@ -94,7 +94,19 @@ function runBids(run: Run<TarotHand>, stepwise = false) {
 
 function runPlay(run: Run<TarotHand>) {
 	const h = run.hand;
-	aiUntil(() => h.complete || h.turn === T.PLAYER, () => void T.play(h, h.turn, ai.chooseCard(h, h.turn)), 100, 'tarot: play');
+	aiUntil(() => h.complete || h.turn === T.PLAYER, () => void T.play(h, h.turn, aiCard(run, h.turn)), 100, 'tarot: play');
+}
+
+/** An AI seat's card. From AI version 3 it thinks ahead (ai.chooseCard),
+ *  which is slow, so the choice goes on the run's tape (R.recall) and a
+ *  replayed save reads it back. */
+function aiCard(run: Run<TarotHand>, seat: number): Card {
+	const h = run.hand;
+	if (!R.aiAtLeast(run, 3)) return ai.chooseCard(h, seat, false);
+	const legal = T.legalPlays(h, seat);
+	if (legal.length === 1) return legal[0];
+	const code = R.recall(run, (s) => legal.some((c) => cards.code(c) === s), () => cards.code(ai.chooseCard(h, seat)));
+	return legal.find((c) => cards.code(c) === code)!;
 }
 
 function ctx(run: Run<TarotHand>): TarotCtx {
@@ -192,7 +204,7 @@ export const tarot: GameModule<TarotHand, TarotAction, TarotCtx> = {
 			T.play(h, T.PLAYER, card);
 			if (!stepwise) runPlay(run);
 		} else {
-			while (!h.complete) T.play(h, h.turn, ai.chooseCard(h, h.turn));
+			while (!h.complete) T.play(h, h.turn, h.turn === T.PLAYER ? ai.quickCard(h, h.turn) : aiCard(run, h.turn));
 		}
 	},
 	swapHand: {
@@ -225,7 +237,7 @@ export const tarot: GameModule<TarotHand, TarotAction, TarotCtx> = {
 		});
 	},
 	aiToMove: (run) => run.hand.stage === 'play' && !run.hand.complete && run.hand.turn !== T.PLAYER,
-	stepAI: (run) => (T.play(run.hand, run.hand.turn, ai.chooseCard(run.hand, run.hand.turn)) ? 'trick' : 'card'),
+	stepAI: (run) => (T.play(run.hand, run.hand.turn, aiCard(run, run.hand.turn)) ? 'trick' : 'card'),
 	score(run) {
 		const c = ctx(run);
 		const h = run.hand;
@@ -282,6 +294,6 @@ export const tarot: GameModule<TarotHand, TarotAction, TarotCtx> = {
 			if (h.stage === 'dog') return { t: 'aside', cards: ai.chooseAside(h.hands[T.PLAYER]).map(cards.code) };
 			return { t: 'bid', bid: ai.chooseBid(h, T.PLAYER, rng.next() < 0.3 ? 4 : 0) };
 		}
-		return { t: 'play', card: cards.code(ai.chooseCard(h, T.PLAYER)) };
+		return { t: 'play', card: cards.code(ai.quickCard(h, T.PLAYER)) };
 	}
 };

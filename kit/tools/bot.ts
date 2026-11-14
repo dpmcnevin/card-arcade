@@ -6,9 +6,9 @@ import { apply, type Action, type Save } from '../src/run/save.ts';
 import type { GameModule, Run } from '../src/run/run.ts';
 import { newRng } from '../src/core/rules/rng.ts';
 
-export function playRun(module: GameModule, seed: string | number, maxSteps = 20000, deck?: string): { run: Run; save: Save } {
-	const run = R.newRun(module, seed, { deck });
-	const save: Save = { version: 1, game: module.id, seed, ...(deck ? { deck } : {}), ai: R.AI_VERSION, actions: [] };
+export function playRun(module: GameModule, seed: string | number, maxSteps = 20000, deck?: string, ai = R.AI_VERSION): { run: Run; save: Save } {
+	const run = R.newRun(module, seed, { deck, ai });
+	const save: Save = { version: 1, game: module.id, seed, ...(deck ? { deck } : {}), ai, actions: [], tape: run.ext.tape };
 	const rng = newRng(`${seed}|bot`);
 	const go = (a: Action) => {
 		save.actions.push(a);

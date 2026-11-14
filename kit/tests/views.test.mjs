@@ -6,7 +6,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import * as R from '../src/run/run.ts';
-import { apply } from '../src/run/save.ts';
+import { apply, replay, undo } from '../src/run/save.ts';
+import { playRun } from '../tools/bot.ts';
 import { newRng } from '../src/core/rules/rng.ts';
 import { hearts } from '../games/hearts/module.ts';
 import { bridge } from '../games/bridge/module.ts';
@@ -124,4 +125,20 @@ test('the Wild Deck: every card enhanced, no x mult editions, higher goals', asy
 		assert.ok(run.pack.every((c) => !C.CARD_EDITIONS[R.mod(run, c).edition].effect.xmult && R.mod(run, c).edition !== 'molten'), `${m.id}: no x mult editions`);
 		assert.equal(run.target, Math.round(plain.target * scale), `${m.id}: the goal is x${scale}`);
 	}
+});
+
+test('the AI tape: a Tarot save replays the same with or without it, and after an Undo', () => {
+	const { run, save } = playRun(tarot, 'tape-1', 260);
+	assert.ok(save.tape.length > 10, 'the thinking-ahead AI recorded its cards');
+	const state = (r) => JSON.stringify({ hand: r.hand, stats: r.stats, money: r.money, board: r.board });
+	const withTape = replay(tarot, JSON.parse(JSON.stringify(save)));
+	const without = replay(tarot, { ...save, tape: undefined });
+	assert.equal(state(withTape), state(run));
+	assert.equal(state(without), state(run));
+	assert.equal(withTape.ext.tapeAt, withTape.ext.tape.length, 'the replay read the tape to its end');
+	// A tape entry that no longer fits is thought through again.
+	const bad = { ...save, tape: save.tape.map((c, i) => (i === 3 ? 'zz' : c)) };
+	assert.equal(state(replay(tarot, bad)), state(run));
+	const back = undo(save);
+	if (back) assert.equal(state(replay(tarot, back)), state(replay(tarot, { ...back, tape: undefined })));
 });
