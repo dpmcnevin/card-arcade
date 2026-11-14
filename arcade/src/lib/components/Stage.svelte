@@ -2,6 +2,7 @@
      scaled to fit. The arcade's root shows every game; a game's own page
      (/hearts/, /bridge/, /euchre/) passes `only` and shows just that one. -->
 <script lang="ts">
+	import { glint } from '../ui/glint.ts';
 	import { arcade } from '../app.svelte.ts';
 	import * as R from '$kit/src/run/run.ts';
 	import Felt from './Felt.svelte';
@@ -106,7 +107,7 @@
 				{:else if phase === R.PHASE.PLAY && !arcade.busy && (void arcade.v, ui.view(run).legal.size)}
 					{@const claim = arcade.claim}
 					<div class="out" class:claim style:top="{L.outAt[1]}px">
-						<button title={claim ? 'Every way to play the rest ends the same: take it now' : 'Let the table play the rest of the hand for you'} onclick={() => arcade.game({ t: 'playOut' })}>{claim ? 'Claim the rest' : 'Play it out'}</button>
+						<button use:glint={{ ms: 1200, everyTick: true, stagger: 200, off: () => !arcade.claim }} title={claim ? 'Every way to play the rest ends the same: take it now' : 'Let the table play the rest of the hand for you'} onclick={() => arcade.game({ t: 'playOut' })}>{claim ? 'Claim the rest' : 'Play it out'}</button>
 					</div>
 				{/if}
 				<Panels />
@@ -204,7 +205,9 @@
 		background: var(--brass);
 		color: var(--bg);
 		font-weight: 700;
-		animation: claim 1.6s ease-in-out infinite;
+	}
+	.out.claim button:global(.go) {
+		animation: claim 1.2s ease-in-out;
 	}
 	@keyframes claim {
 		50% {

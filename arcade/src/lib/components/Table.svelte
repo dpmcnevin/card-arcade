@@ -65,6 +65,9 @@
 
 	// ---- your hand: order and dragging
 	let drag = $state<{ k: string; x: number; y: number; moved: boolean; sx: number; sy: number } | null>(null);
+	/** The pick as it was before this press toggled a card (put back if the
+	 *  press turns into a drag); the click that follows the press is skipped. */
+	let pickBefore: string[] | null = null;
 	let suppress = false;
 	let stage: HTMLElement | null = null;
 	function toStage(e: PointerEvent): [number, number] {
@@ -249,6 +252,8 @@
 		if (!drag) return;
 		const [x, y] = toStage(e);
 		if (!drag.moved && Math.hypot(x - drag.sx, y - drag.sy) < 8) return;
+		// A drag to rearrange, not a pick: undo the press's toggle.
+		if (!drag.moved && pickBefore) arcade.picked = pickBefore;
 		drag = { ...drag, x, y, moved: true };
 	}
 	function up() {
@@ -347,8 +352,18 @@
 					if (arcade.busy) return;
 					const [x, y] = toStage(e);
 					drag = { k, x, y, sx: x, sy: y, moved: false };
+					// Picking (a pass, the dog): toggle on the press, not the release.
+					pickBefore = null;
+					if (picking && actionable(k) && e.button === 0) {
+						pickBefore = arcade.picked.slice();
+						activate(c);
+					}
 				}}
-				onclick={() => activate(c)}
+				onclick={() => {
+					// Already toggled on the press.
+					if (pickBefore) return void (pickBefore = null);
+					activate(c);
+				}}
 			></button>
 		{/each}
 	{/if}

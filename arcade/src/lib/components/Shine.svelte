@@ -4,13 +4,30 @@
      see-through ghost for Phantom. -->
 <script lang="ts">
 	import type { Snippet } from 'svelte';
+	import { glint } from '../ui/glint.ts';
 	/** `quiet`: the card is dimmed (can't be played now); its edition fades to
 	 *  a hint and holds still, so the card underneath reads. */
 	let { edition, quiet = false, children }: { edition?: string | null; quiet?: boolean; children: Snippet } = $props();
+	// Each edition holds a still look and, now and then (the shared glint
+	// clock), plays one short flourish: nothing animates between them.
+	const MS: Record<string, number> = { molten: 1400, neon: 300, static: 300, frost: 900 };
+	const SNOW = [[0, 0], [-17, 11], [13, -19], [-7, -9]];
+	function start(node: HTMLElement, n: number) {
+		// The foil slides on a sixth of its repeat each time (16px of 96).
+		node.style.setProperty('--fa', `${((n - 1) % 6) * 16}px`);
+		node.style.setProperty('--fb', `${((n - 1) % 6) * 16 + 16}px`);
+		const [x, y] = SNOW[n % SNOW.length];
+		node.style.setProperty('--sx', `${x}px`);
+		node.style.setProperty('--sy', `${y}px`);
+		node.style.setProperty('--sl', `${(n % 3) * 2}px`);
+	}
+	function end(node: HTMLElement, n: number) {
+		node.style.setProperty('--fa', `${(n % 6) * 16}px`);
+	}
 </script>
 
 {#if edition}
-	<span class="shine {edition}" class:quiet>{@render children()}</span>
+	<span class="shine {edition}" class:quiet use:glint={{ ms: MS[edition] ?? 900, off: () => quiet || edition === 'phantom', start, end }}>{@render children()}</span>
 {:else}
 	{@render children()}
 {/if}
@@ -23,7 +40,7 @@
 		flex: none;
 	}
 	/* The sheen is a band on an oversized layer that slides across by
-	   transform (the GPU moves it; nothing is repainted each frame). */
+	   transform (the GPU moves it, without repainting). */
 	.shine::after {
 		content: '';
 		position: absolute;
@@ -34,8 +51,11 @@
 		pointer-events: none;
 		background: linear-gradient(135deg, transparent 44%, rgba(255, 255, 255, 0.85) 50%, transparent 56%);
 		mix-blend-mode: screen;
-		animation: sweep 1.8s linear infinite;
-		will-change: transform;
+		/* At rest the band waits off the card; a glint sweeps it across once. */
+		transform: translate(-34%, -34%);
+	}
+	.shine.go::after {
+		animation: sweep 0.9s ease-in-out;
 	}
 	.shine.etched::before,
 	.shine.lacquered::before {
@@ -69,7 +89,11 @@
 		background: no-repeat 0 0 / calc(100% + 96px) 100% linear-gradient(110deg, #ff4d4d 0px, #ffa64d 15px, #fff24d 30px, #66ff66 45px, #4dd2ff 60px, #8c66ff 75px, #ff4d4d 90px, #ffa64d 105px, #fff24d 120px, #66ff66 135px, #4dd2ff 150px, #8c66ff 165px, #ff4d4d 180px, #ffa64d 195px, #fff24d 210px, #66ff66 225px, #4dd2ff 240px, #8c66ff 255px, #ff4d4d 270px, #ffa64d 285px, #fff24d 300px, #66ff66 315px, #4dd2ff 330px, #8c66ff 345px, #ff4d4d 360px, #ffa64d 375px, #fff24d 390px, #66ff66 405px, #4dd2ff 420px, #8c66ff 435px, #ff4d4d 450px, #ffa64d 465px, #fff24d 480px, #66ff66 495px, #4dd2ff 510px, #8c66ff 525px, #ff4d4d 540px, #ffa64d 555px, #fff24d 570px, #66ff66 585px, #4dd2ff 600px, #8c66ff 615px, #ff4d4d 630px, #ffa64d 645px, #fff24d 660px, #66ff66 675px, #4dd2ff 690px, #8c66ff 705px, #ff4d4d 720px);
 		opacity: 0.6;
 		mix-blend-mode: overlay;
-		animation: foil 2.6s linear infinite;
+		background-position: calc(var(--fa, 0px) * -1) 0;
+	}
+	/* A glint slides the foil on a step (a sixth of its repeat). */
+	.shine.prismatic.go::before {
+		animation: foil 0.9s ease-in-out forwards;
 	}
 
 	.shine.phantom {
@@ -89,14 +113,13 @@
 	}
 	@keyframes foil {
 		from {
-			background-position: 0 0;
+			background-position: calc(var(--fa, 0px) * -1) 0;
 		}
 		to {
-			background-position: -95.78px 0;
+			background-position: calc(var(--fb, 16px) * -1) 0;
 		}
 	}
-	/* ---- The animated editions. Each moves by transform or opacity only, so
-	   the GPU animates it without repainting. */
+	/* ---- The animated editions: still looks, with a flourish on each glint. */
 
 	/* Static: TV snow (a tiny noise image, drawn chunky) jumping about, and
 	   scanlines rolling down. */
@@ -113,8 +136,11 @@
 		image-rendering: pixelated;
 		mix-blend-mode: soft-light;
 		opacity: 0.35;
-		animation: snow 1.2s steps(1) infinite;
-		will-change: transform;
+		/* Still snow; a glint jumps it to a new spot and brightens it a moment. */
+		transform: translate(var(--sx, 0px), var(--sy, 0px));
+	}
+	.shine.static.go::before {
+		opacity: 0.55;
 	}
 	.shine.static::after {
 		left: 0;
@@ -123,17 +149,10 @@
 		height: 200%;
 		background: repeating-linear-gradient(0deg, rgba(20, 20, 30, 0.08) 0 2px, transparent 2px 6px);
 		mix-blend-mode: normal;
-		animation: scan 6s linear infinite;
+		transform: translateY(var(--sl, 0px));
 	}
-	@keyframes snow {
-		0% { transform: translate(0, 0); }
-		25% { transform: translate(-17px, 11px); }
-		50% { transform: translate(13px, -19px); }
-		75% { transform: translate(-7px, -9px); }
-	}
-	@keyframes scan {
-		from { transform: translateY(0); }
-		to { transform: translateY(50%); }
+	.shine.static.go::after {
+		animation: none;
 	}
 
 	/* Molten: a glow of magma, swelling and fading like heat. */
@@ -149,12 +168,14 @@
 			linear-gradient(rgba(255, 120, 30, 0.35), rgba(200, 30, 10, 0.55));
 		box-shadow: inset 0 0 14px 4px rgba(255, 100, 20, 0.9);
 		mix-blend-mode: multiply;
-		animation: heat 2.4s ease-in-out infinite alternate;
-		will-change: transform, opacity;
+		opacity: 0.6;
+	}
+	/* A glint: one swell of heat, and back. */
+	.shine.molten.go::before {
+		animation: heat 1.4s ease-in-out;
 	}
 	@keyframes heat {
-		from { opacity: 0.45; transform: scale(1) translateY(2%); }
-		to { opacity: 0.85; transform: scale(1.08) translateY(-3%); }
+		50% { opacity: 0.9; transform: scale(1.08) translateY(-3%); }
 	}
 
 	/* Frost: a cold tint, and sparkles twinkling. */
@@ -182,11 +203,14 @@
 			radial-gradient(circle at 82% 78%, #fff 0 1.5px, rgba(70, 160, 255, 0.95) 2.5px, transparent 4.0px),
 			radial-gradient(circle at 44% 90%, #fff 0 1px, rgba(70, 160, 255, 0.95) 2.0px, transparent 3.5px);
 		mix-blend-mode: normal;
-		animation: twinkle 2.2s steps(4) infinite alternate;
+		opacity: 0.6;
+	}
+	/* A glint: the sparkles twinkle once. */
+	.shine.frost.go::after {
+		animation: twinkle 0.9s steps(4);
 	}
 	@keyframes twinkle {
-		from { opacity: 0.15; transform: translateY(1px); }
-		to { opacity: 1; transform: translateY(-2px); }
+		50% { opacity: 1; transform: translateY(-2px); }
 	}
 
 	/* Neon: a glowing tube round the card that buzzes and flickers. */
@@ -200,20 +224,22 @@
 			inset 0 0 0 2px #ff4fd8,
 			inset 0 0 0 4px rgba(79, 231, 255, 0.55),
 			inset 0 0 14px 4px rgba(255, 79, 216, 0.75);
-		animation: buzz 3.2s linear infinite;
-		will-change: opacity;
+	}
+	/* A glint: the tube buzzes and dips. */
+	.shine.neon.go::before {
+		animation: buzz 0.3s steps(1);
 	}
 	@keyframes buzz {
-		0%, 5%, 9%, 55%, 59%, 100% { opacity: 1; }
-		6%, 8% { opacity: 0.25; }
-		56%, 58% { opacity: 0.45; }
+		0%, 100% { opacity: 1; }
+		20% { opacity: 0.25; }
+		50% { opacity: 0.6; }
+		70% { opacity: 0.3; }
 	}
 
-	/* A dimmed card: its edition fades to a hint and holds still. */
+	/* A dimmed card: its edition fades to a hint (and skips its glints). */
 	.shine.quiet::before,
 	.shine.quiet::after {
 		opacity: 0.18 !important;
-		animation-play-state: paused !important;
 	}
 	/* Stepped: the shine jumps a pixel-art step at a time (a dozen frames a
 	   sweep), which a browser without a GPU draws far more cheaply. */
@@ -224,11 +250,8 @@
 		animation-timing-function: steps(24);
 	}
 	@media (prefers-reduced-motion: reduce) {
-		.shine::after,
-		.shine.prismatic::before,
-		.shine.static::before,
-		.shine.molten::before,
-		.shine.neon::before {
+		.shine.go::after,
+		.shine.go::before {
 			animation: none;
 		}
 	}

@@ -2,6 +2,7 @@
      tinted) with a price coin; tap one to read it and buy. Your relics to
      sell, a reroll, and the way on. -->
 <script lang="ts">
+	import { glint } from '../ui/glint.ts';
 	import { arcade } from '../app.svelte.ts';
 	import * as R from '$kit/src/run/run.ts';
 	import Icon from './Icon.svelte';
@@ -57,6 +58,7 @@
 			{@const can = R.canBuy(run, i)}
 			<div
 				class="item"
+				use:glint={{ ms: 1200 }}
 				class:sel={picked === i}
 				class:sold={it.sold}
 				style:--edge={edge(it)}
@@ -152,13 +154,15 @@
 		background: radial-gradient(ellipse at center, var(--felt-light), var(--felt-edge) 80%);
 		border: 3px solid var(--brass-dim);
 	}
-	/* Each ware floats a little, out of step with its neighbours. */
+	/* Each ware rises a little now and then, out of step with its neighbours. */
 	.item {
 		position: relative;
 		width: 150px;
 		cursor: pointer;
 		transition: transform 0.12s;
-		animation: float 3.6s ease-in-out infinite;
+	}
+	.item:global(.go) {
+		animation: float 1.2s ease-in-out;
 	}
 	@keyframes float {
 		0%,

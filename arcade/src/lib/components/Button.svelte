@@ -1,8 +1,9 @@
-<!-- The game's chunky button: a shadow, a lighter top lip, a gentle bob when
-     it's the obvious next step, and a click sound. -->
+<!-- The game's chunky button: a shadow, a lighter top lip, a little hop now and
+     then when it's the obvious next step, and a click sound. -->
 <script lang="ts">
 	import type { Snippet } from 'svelte';
 	import * as sound from '../audio/sound.ts';
+	import { glint } from '../ui/glint.ts';
 
 	let {
 		onclick,
@@ -37,6 +38,7 @@
 <button
 	class="btn {variant} {size}"
 	class:pulse={pulse && enabled}
+	use:glint={{ ms: 520, everyTick: true, stagger: 300, off: () => !(pulse && enabled) }}
 	disabled={!enabled}
 	{title}
 	{style}
@@ -105,16 +107,16 @@
 		box-shadow: 0 4px 0 rgba(0, 0, 0, 0.35);
 		cursor: default;
 	}
-	.pulse:not(:hover) {
-		animation: bob 1.57s ease-in-out infinite;
+	/* The obvious next step hops now and then (the shared glint clock). */
+	.pulse.go:not(:hover) {
+		animation: hop 0.52s ease-out;
 	}
-	@keyframes bob {
-		0%,
-		100% {
-			transform: translateY(-1.5px);
+	@keyframes hop {
+		30% {
+			transform: translateY(-4px);
 		}
-		50% {
-			transform: translateY(1.5px);
+		60% {
+			transform: translateY(1px);
 		}
 	}
 </style>

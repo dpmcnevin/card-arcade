@@ -14,6 +14,7 @@
 	import * as sound from '../audio/sound.ts';
 	import SealBadge from './SealBadge.svelte';
 	import Shine from './Shine.svelte';
+	import { glint } from '../ui/glint.ts';
 	import { editionColor } from './editions.ts';
 	
 	export interface Spawn {
@@ -177,7 +178,7 @@
 	{#snippet backFace(turned: boolean)}
 		<div class="face back" class:turned><img src={backImg} alt="" draggable="false" /></div>
 	{/snippet}
-	<div class="sway" class:idle={idle != null} style:animation-delay={idle != null ? `${-idle * 0.77}s` : undefined}>
+	<div class="sway" class:idle={idle != null} use:glint={{ ms: 1200, off: () => idle == null }}>
 	<div class="flipper">
 		{#if turn.current > 0.5 && turn.current < 179.5}
 			<!-- Mid-flip: both sides in 3D. -->
@@ -215,21 +216,17 @@
 		width: 100%;
 		height: 100%;
 	}
-	.sway.idle {
-		animation: sway 4.83s ease-in-out infinite;
+	/* A card in your hand rests still, and now and then (the shared glint
+	   clock) rocks once. */
+	.sway.idle:global(.go) {
+		animation: sway 1.2s ease-in-out;
 	}
 	@keyframes sway {
-		0%,
-		100% {
-			transform: rotate(-0.46deg);
+		25% {
+			transform: rotate(-0.6deg);
 		}
-		50% {
-			transform: rotate(0.46deg);
-		}
-	}
-	@media (prefers-reduced-motion: reduce) {
-		.sway.idle {
-			animation: none;
+		75% {
+			transform: rotate(0.6deg);
 		}
 	}
 	.flipper {
