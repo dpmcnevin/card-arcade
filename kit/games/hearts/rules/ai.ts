@@ -12,7 +12,7 @@ import * as H from './hearts.ts';
 import { luaSort } from '../../../src/core/rules/luasort.ts';
 import type { Card, Hand } from '../../../src/core/rules/cards.ts';
 import type { HandState } from './hearts.ts';
-import type { RNG } from '../../../src/core/rules/rng.ts';
+import { newRng, type RNG } from '../../../src/core/rules/rng.ts';
 
 export const DEFAULT_SKILL = 0.9;
 
@@ -60,6 +60,9 @@ export interface AIContext {
 	/** The newer AI (R.AI_VERSION 2): a better first trick, cashing high
 	 *  spades over its own queen, and discards that shed dangerous high cards. */
 	smart?: boolean;
+	/** Plays only on what a player at the table knows (AI version 4): the
+	 *  face-down kitty's points aren't counted on the first trick. */
+	fair?: boolean;
 }
 
 /** Is this hand strong enough to try for the moon? Lots of high cards,
@@ -150,7 +153,7 @@ function chooseFollow(state: HandState, seat: number, legal: Card[], ctx: AICont
 	const led = state.ledSuit!;
 	const following = legal[0].suit === led;
 	const win = H.trickWinner(state.trick);
-	const trickPts = H.pointsIn(state.trick.map((p) => p.card), state.pts) + (state.tricks.length === 0 ? H.pointsIn(state.kitty, state.pts) : 0);
+	const trickPts = H.pointsIn(state.trick.map((p) => p.card), state.pts) + (state.tricks.length === 0 && !ctx.fair ? H.pointsIn(state.kitty, state.pts) : 0);
 	const last = state.trick.length === 3;
 	const threat = moonThreat(state, seat);
 
@@ -279,13 +282,16 @@ export function choosePassPlausible(hand: Hand, rng: RNG, skill = DEFAULT_SKILL)
 	return rng.sample(scored.slice(0, 6), 3).map((x) => x.c);
 }
 
-/** Choose a card for an AI seat. */
-export function chooseCard(state: HandState, seat: number, ctx: AIContext): Card {
+/** Choose a card for an AI seat. `think`, when given, picks the card in
+ *  place of the rules of thumb (the newer AI's lookahead); a forced card,
+ *  a moon run and a person's kind of mistake come first either way. */
+export function chooseCard(state: HandState, seat: number, ctx: AIContext, think?: () => Card): Card {
 	const legal = H.legalPlays(state, seat);
 	if (legal.length === 1) return legal[0];
 	const skill = ctx.skill ?? DEFAULT_SKILL;
 	if (shooting(state, seat)) return chooseMoon(state, seat, legal);
 	if (ctx.rng.chance(1 - skill)) return ctx.plausible ? plausibleMistake(state, seat, legal, ctx) : legal[ctx.rng.int(1, legal.length) - 1];
+	if (think) return think();
 	if (state.trick.length === 0) return chooseLead(state, seat, legal);
 	return chooseFollow(state, seat, legal, ctx);
 }
@@ -300,4 +306,143 @@ export function playOut(state: HandState, ctx: AIContext | ((seat: number) => AI
 		H.play(state, seat, chooseCard(state, seat, typeof ctx === 'function' ? ctx(seat) : ctx));
 	}
 	return state;
+}
+
+// ------------------------------------------------------------------ lookahead
+//
+// The newer AI (version 4) plays the way a careful player does: it pictures
+// where the cards it can't see might be, using only what a player at the
+// table would know (its own hand, every card played, who has shown out of a
+// suit, the three cards it passed and to whom, the points taken so far, and
+// what the pack holds), plays the rest of the hand out in its head for each
+// card it might play, and plays the one that leaves it the fewest points on
+// average (a moon counts: its own as a big win, anyone else's as a big loss).
+// It never looks at another hand, the face-down kitty, or which opponents
+// are going for the moon. Its pictures come from a seed made of the
+// position, so the same position always gets the same card.
+
+/** What a seat knows beyond the table: the cards it passed, and to whom. */
+export interface Knowledge {
+	passed?: { to: number; cards: Card[] };
+}
+
+const BUDGET = 320;
+const MIN_SAMPLES = 14;
+
+function copyState(st: HandState): HandState {
+	return {
+		...st,
+		hands: st.hands.map((x) => x.slice()),
+		trick: st.trick.slice(),
+		tricks: st.tricks.slice(),
+		taken: st.taken.map((x) => x.slice()),
+		voids: st.voids.map((v) => ({ ...v })),
+		played: st.played.slice(),
+		kitty: st.kitty.slice(),
+		moonSeats: st.moonSeats?.slice()
+	};
+}
+
+/** Suits each seat is known to be out of: those it didn't follow, and every
+ *  suit but hearts for a seat that led a heart before hearts were broken. */
+function knownVoids(st: HandState): Set<number>[] {
+	const out = [0, 1, 2, 3, 4].map((s) => new Set<number>(Object.keys(st.voids[s] ?? {}).filter((k) => st.voids[s][Number(k)]).map(Number)));
+	let broken = false;
+	for (const t of [...st.tricks.map((x) => x.plays), st.trick]) {
+		for (let i = 0; i < t.length; i++) {
+			const p = t[i];
+			if (i === 0 && p.card.suit === H.HEARTS && !broken && !(st.wildSeat === p.seat)) {
+				for (const suit of [H.CLUBS, H.DIAMONDS, H.SPADES]) out[p.seat].add(suit);
+			}
+			if (p.card.suit === H.HEARTS || H.isQueenOfSpades(p.card)) broken = true;
+		}
+	}
+	return out;
+}
+
+/** The hidden cards dealt back out as this seat might picture them. Seat 0
+ *  stands for the face-down kitty. */
+function imagine(st: HandState, seat: number, rng: RNG, voids: Set<number>[], know: Knowledge): HandState {
+	const c = copyState(st);
+	const others = [1, 2, 3, 4].filter((s) => s !== seat);
+	const holders = st.kitty.length ? [...others, 0] : others;
+	const room = (s: number) => (s === 0 ? st.kitty.length : st.hands[s].length);
+	const pool = [...others.flatMap((s) => st.hands[s]), ...st.kitty];
+	const playedSet = new Set(st.played.map((p) => p.card));
+	const gift = new Set(know.passed && know.passed.to !== seat ? know.passed.cards.filter((x) => !playedSet.has(x)) : []);
+	const can = (s: number, card: Card, strict: boolean) => {
+		if (gift.has(card)) return s === know.passed!.to;
+		if (s === 0) return true;
+		return !strict || !voids[s].has(card.suit);
+	};
+	for (let attempt = 0; attempt < 12; attempt++) {
+		const strict = attempt < 10;
+		const left = new Map(holders.map((s) => [s, room(s)]));
+		const deal = new Map<number, Card[]>(holders.map((s) => [s, []]));
+		const order = rng.shuffle(pool.slice());
+		order.sort((a, b) => holders.filter((s) => can(s, a, strict)).length - holders.filter((s) => can(s, b, strict)).length);
+		let ok = true;
+		for (const card of order) {
+			const fit = holders.filter((s) => left.get(s)! > 0 && can(s, card, strict));
+			if (!fit.length) { ok = false; break; }
+			const s = fit[Math.floor(rng.next() * fit.length)];
+			deal.get(s)!.push(card);
+			left.set(s, left.get(s)! - 1);
+		}
+		if (!ok) continue;
+		for (const s of others) c.hands[s] = deal.get(s)!;
+		if (st.kitty.length) {
+			const kitty = deal.get(0)!;
+			// After the first trick the kitty sits with whoever won it: swap the
+			// pictured kitty in for the real one there.
+			if (st.tricks.length > 0) {
+				const w = st.tricks[0].winner;
+				c.taken[w] = [...c.taken[w].filter((x) => !st.kitty.includes(x)), ...kitty];
+			}
+			c.kitty = kitty;
+		}
+		break;
+	}
+	// Whether the others are going for the moon is theirs to know.
+	c.moonSeats = st.moonSeats?.includes(seat) ? [seat] : [];
+	return c;
+}
+
+function seedFor(st: HandState, seat: number): RNG {
+	const code = (x: Card) => `${x.suit}.${x.rank}`;
+	return newRng(`hearts|${seat}|${st.hands[seat].map(code).join(',')}|${st.played.map((p) => `${p.seat}:${code(p.card)}`).join(',')}`);
+}
+
+/** What the hand cost this seat: its points, or a moon's swing. */
+function cost(st: HandState, seat: number): number {
+	const shooter = H.moonShooter(st);
+	if (shooter === seat) return -H.positiveTotal(st);
+	if (shooter !== null) return H.positiveTotal(st);
+	return H.pointsTaken(st)[seat];
+}
+
+/** The card that leaves this seat the fewest points over the hands it
+ *  pictures (ties go to the rule-of-thumb card). */
+export function thinkAhead(st: HandState, seat: number, ctx: AIContext, know: Knowledge = {}): Card {
+	const legal = H.legalPlays(st, seat);
+	if (legal.length === 1) return legal[0];
+	const rng = seedFor(st, seat);
+	const quickCtx: AIContext = { rng, skill: 1, plausible: true, smart: true, fair: true };
+	const quick = st.trick.length === 0 ? chooseLead(st, seat, legal) : chooseFollow(st, seat, legal, { ...ctx, rng, smart: true });
+	const moves = [quick, ...legal.filter((c) => c !== quick)];
+	const n = Math.max(MIN_SAMPLES, Math.floor(BUDGET / moves.length));
+	const voids = knownVoids(st);
+	const pictures = Array.from({ length: n }, () => imagine(st, seat, rng, voids, know));
+	let best = quick, bestV = Infinity;
+	for (const m of moves) {
+		let v = 0;
+		for (const pic of pictures) {
+			const c = copyState(pic);
+			H.play(c, seat, m);
+			playOut(c, quickCtx);
+			v += cost(c, seat);
+		}
+		if (v < bestV) [best, bestV] = [m, v];
+	}
+	return best;
 }

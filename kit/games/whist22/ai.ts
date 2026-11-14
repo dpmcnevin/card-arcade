@@ -139,6 +139,36 @@ function imagine(h: WhistHand, seat: number, rng: RNG): WhistHand {
 	return c;
 }
 
+/** How well an imagined deal fits the bids made: each seat that has bid is
+ *  likelier to hold cards that bid that (by the rule-of-thumb count of its
+ *  hand as it was dealt, cards already played included). 1 is a perfect fit. */
+function fit(h: WhistHand, d: WhistHand, seat: number): number {
+	let w = 1;
+	for (const s of [1, 2, 3, 4]) {
+		const b = h.bids[s];
+		if (s === seat || b === null) continue;
+		const played = [...h.tricks.flatMap((t) => t.plays), ...h.trick].filter((p) => p.seat === s).map((p) => p.card);
+		const dealt = [...d.hands[s], ...played];
+		const e = Math.min(h.size, expected(dealt) + (dealt.some(W.isFool) ? 0.35 : 0));
+		w *= Math.exp(-((e - b) ** 2) / (2 * 0.6 * 0.6));
+	}
+	return w;
+}
+
+/** An imagined deal that fits the bids: deals drawn at random are kept in
+ *  proportion to how well they fit (the newer AI, version 4). A seat that
+ *  bid 0 rarely holds the 20; a seat that bid 3 of 4 holds high cards. */
+function imagineFitting(h: WhistHand, seat: number, rng: RNG): WhistHand {
+	let best: WhistHand | null = null, bestW = -1;
+	for (let i = 0; i < 40; i++) {
+		const d = imagine(h, seat, rng);
+		const w = fit(h, d, seat);
+		if (rng.next() < w) return d;
+		if (w > bestW) [best, bestW] = [d, w];
+	}
+	return best!;
+}
+
 /** Finish the round with the rule-of-thumb player in every seat. */
 function playOutQuick(h: WhistHand) {
 	while (h.stage === 'bid') W.bid(h, h.turn, quickBid(h, h.turn));
@@ -151,13 +181,13 @@ function playOutQuick(h: WhistHand) {
 /** The bid that comes out exact most often over simulated rounds (ties go
  *  to the rule-of-thumb bid). In the one-card round you can't see your own
  *  card, so it bids by what's on the others' foreheads. */
-export function chooseBid(h: WhistHand, seat: number, lookahead = true): number {
+export function chooseBid(h: WhistHand, seat: number, lookahead = true, infer = false): number {
 	const quick = quickBid(h, seat);
 	if (h.blind || !lookahead) return quick;
 	const options = Array.from({ length: h.size + 1 }, (_, i) => i).filter((b) => W.canBid(h, seat, b));
 	if (options.length === 1) return options[0];
 	const rng = seedFor(h, seat, 'bid');
-	const deals = Array.from({ length: BID_SAMPLES }, () => imagine(h, seat, rng));
+	const deals = Array.from({ length: BID_SAMPLES }, () => (infer ? imagineFitting(h, seat, rng) : imagine(h, seat, rng)));
 	let best = quick, bestN = -1;
 	for (const b of [quick, ...options.filter((x) => x !== quick)]) {
 		let n = 0;
@@ -174,7 +204,7 @@ export function chooseBid(h: WhistHand, seat: number, lookahead = true): number 
 
 /** The card (and the Fool's value) that makes the bid most often over
  *  simulated rounds (ties go to the rule-of-thumb card). */
-export function chooseCard(h: WhistHand, seat: number, lookahead = true): Move {
+export function chooseCard(h: WhistHand, seat: number, lookahead = true, infer = false): Move {
 	const quick = quickCard(h, seat);
 	const hand = h.hands[seat];
 	if (hand.length <= 1 || h.blind || !lookahead) return quick;
@@ -182,7 +212,7 @@ export function chooseCard(h: WhistHand, seat: number, lookahead = true): Move {
 	const same = (a: Move, b: Move) => a.card === b.card && (a.fool ?? -1) === (b.fool ?? -1);
 	const ordered = [moves.find((m) => same(m, quick)) ?? quick, ...moves.filter((m) => !same(m, quick))];
 	const rng = seedFor(h, seat, 'card');
-	const deals = Array.from({ length: CARD_SAMPLES }, () => imagine(h, seat, rng));
+	const deals = Array.from({ length: CARD_SAMPLES }, () => (infer ? imagineFitting(h, seat, rng) : imagine(h, seat, rng)));
 	let best = ordered[0], bestN = -1;
 	for (const m of ordered) {
 		let n = 0;

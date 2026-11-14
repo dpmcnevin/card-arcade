@@ -23,6 +23,8 @@ export interface HeartsHand {
 	passDir: PassDir;
 	passed: Card[];
 	received: Card[];
+	/** The last round of passing, by passer (each AI seat knows its own). */
+	passes?: Card[][];
 	state: HandState | null;
 	/** Ploys at work this hand: Spyglass (the trick it shows), Umbrella,
 	 *  Fall Guy (from which trick), Second Pass (another pass follows). */
@@ -44,8 +46,29 @@ const round5 = (n: number) => (n < 100 ? Math.round(n / 5) * 5 : Math.round(n / 
 function aiCtx(run: Run, rng = run.rng, seat = 0): ai.AIContext {
 	// The Cartel: every opponent pushes points onto you; the Shark: North does, sharply.
 	const smart = R.smartAI(run);
-	if (R.bossIs(run, 'cartel') || (R.bossIs(run, 'shark') && seat === H.NORTH)) return { rng, skill: 1, plausible: false, target: H.PLAYER, smart };
-	return { rng, skill: 0.85 + 0.015 * run.table, plausible: true, smart };
+	const fair = R.aiAtLeast(run, 4);
+	if (R.bossIs(run, 'cartel') || (R.bossIs(run, 'shark') && seat === H.NORTH)) return { rng, skill: 1, plausible: false, target: H.PLAYER, smart, fair };
+	return { rng, skill: 0.85 + 0.015 * run.table, plausible: true, smart, fair };
+}
+
+/** An AI seat's card. From AI version 4 it thinks ahead (ai.thinkAhead),
+ *  unless a boss gives it a job (pushing points onto you, saving a card);
+ *  the thinking is slow, so its choice goes on the run's tape (R.recall)
+ *  and a replayed save reads it back. The thinking draws on its own seeded
+ *  randomness, never the run's, so a replay that skips it stays in step. */
+function aiCard(run: Run<HeartsHand>, seat: number): Card {
+	const st = run.hand.state!;
+	const ctx = aiCtx(run, run.rng, seat);
+	if (!R.aiAtLeast(run, 4) || ctx.target !== undefined || ctx.saveFor) return ai.chooseCard(st, seat, ctx);
+	// After a Second Pass, the last pass's direction (and its cards) are the ones still known.
+	const dir = run.hand.passDir;
+	const gave = run.hand.passes?.[seat];
+	const know: ai.Knowledge = gave?.length && dir !== 'hold' ? { passed: { to: H.passTarget(seat, dir), cards: gave } } : {};
+	return ai.chooseCard(st, seat, ctx, () => {
+		const legal = H.legalPlays(st, seat);
+		const code = R.recall(run, (s) => legal.some((c) => cards.code(c) === s), () => cards.code(ai.thinkAhead(st, seat, ctx, know)));
+		return legal.find((c) => cards.code(c) === code)!;
+	});
 }
 
 function advanceAI(run: Run<HeartsHand>) {
@@ -53,7 +76,7 @@ function advanceAI(run: Run<HeartsHand>) {
 	let guard = 0;
 	while (!st.complete && st.turn !== H.PLAYER) {
 		if (++guard > 200) throw new Error('hearts: AI stuck');
-		H.play(st, st.turn, ai.chooseCard(st, st.turn, aiCtx(run, run.rng, st.turn)));
+		H.play(st, st.turn, aiCard(run, st.turn));
 	}
 }
 
@@ -239,6 +262,7 @@ export const hearts: GameModule<HeartsHand, HeartsAction, relicsLib.ScoreCtx> = 
 				passes[from] = ai.mostDangerous(h.dealt[from], 3);
 			}
 			const received = H.applyPasses(h.dealt, passes, h.passDir);
+			h.passes = passes.map((x) => x.slice());
 			h.passed = chosen as Card[];
 			h.received = received[H.PLAYER];
 			// Second Pass: everyone passes again, the next way.
@@ -257,7 +281,9 @@ export const hearts: GameModule<HeartsHand, HeartsAction, relicsLib.ScoreCtx> = 
 			H.play(st, H.PLAYER, card);
 			if (!stepwise) advanceAI(run);
 		} else {
-			ai.playOut(h.state!, (seat) => aiCtx(run, run.rng, seat));
+			const st = h.state!;
+			if (!R.aiAtLeast(run, 4)) ai.playOut(st, (seat) => aiCtx(run, run.rng, seat));
+			else while (!st.complete) H.play(st, st.turn, st.turn === H.PLAYER ? ai.chooseCard(st, H.PLAYER, aiCtx(run, run.rng, H.PLAYER)) : aiCard(run, st.turn));
 		}
 	},
 	handOver: (run) => !!run.hand.state?.complete,
@@ -304,7 +330,7 @@ export const hearts: GameModule<HeartsHand, HeartsAction, relicsLib.ScoreCtx> = 
 	aiToMove: (run) => !!run.hand.state && !run.hand.state.complete && run.hand.state.turn !== H.PLAYER,
 	stepAI(run) {
 		const st = run.hand.state!;
-		return H.play(st, st.turn, ai.chooseCard(st, st.turn, aiCtx(run, run.rng, st.turn))) ? 'trick' : 'card';
+		return H.play(st, st.turn, aiCard(run, st.turn)) ? 'trick' : 'card';
 	},
 	score(run) {
 		applyFallGuy(run);

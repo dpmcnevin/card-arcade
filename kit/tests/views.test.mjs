@@ -127,18 +127,21 @@ test('the Wild Deck: every card enhanced, no x mult editions, higher goals', asy
 	}
 });
 
-test('the AI tape: a Tarot save replays the same with or without it, and after an Undo', () => {
-	const { run, save } = playRun(tarot, 'tape-1', 260);
-	assert.ok(save.tape.length > 10, 'the thinking-ahead AI recorded its cards');
-	const state = (r) => JSON.stringify({ hand: r.hand, stats: r.stats, money: r.money, board: r.board });
-	const withTape = replay(tarot, JSON.parse(JSON.stringify(save)));
-	const without = replay(tarot, { ...save, tape: undefined });
-	assert.equal(state(withTape), state(run));
-	assert.equal(state(without), state(run));
-	assert.equal(withTape.ext.tapeAt, withTape.ext.tape.length, 'the replay read the tape to its end');
-	// A tape entry that no longer fits is thought through again.
-	const bad = { ...save, tape: save.tape.map((c, i) => (i === 3 ? 'zz' : c)) };
-	assert.equal(state(replay(tarot, bad)), state(run));
-	const back = undo(save);
-	if (back) assert.equal(state(replay(tarot, back)), state(replay(tarot, { ...back, tape: undefined })));
-});
+for (const [module, steps] of [[tarot, 260], [hearts, 220], [whist22, 220]]) {
+	test(`the AI tape: a ${module.id} save replays the same with or without it, and after an Undo`, () => {
+		const { run, save } = playRun(module, 'tape-1', steps);
+		assert.ok(save.tape.length > 10, 'the thinking-ahead AI recorded its choices');
+		// (Hearts keeps a function in its state: compare what JSON keeps.)
+		const state = (r) => JSON.stringify({ hand: r.hand, stats: r.stats, money: r.money, board: r.board });
+		const withTape = replay(module, JSON.parse(JSON.stringify(save)));
+		const without = replay(module, { ...save, tape: undefined });
+		assert.equal(state(withTape), state(run));
+		assert.equal(state(without), state(run));
+		assert.equal(withTape.ext.tapeAt, withTape.ext.tape.length, 'the replay read the tape to its end');
+		// A tape entry that no longer fits is thought through again.
+		const bad = { ...save, tape: save.tape.map((c, i) => (i === 3 ? 'zz' : c)) };
+		assert.equal(state(replay(module, bad)), state(run));
+		const back = undo(save);
+		if (back) assert.equal(state(replay(module, back)), state(replay(module, { ...back, tape: undefined })));
+	});
+}

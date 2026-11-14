@@ -336,10 +336,11 @@ export interface Run<H = any> {
  *  an older AI replays with that AI (the cards it chose then): runs made
  *  before this existed replay with version 1. 2: Whist 22 thinks ahead;
  *  Hearts plays the first trick and its discards better. */
-export const AI_VERSION = 3;
+export const AI_VERSION = 4;
 /** Is this run on the newer AI? */
 export const smartAI = (run: Run) => (run.ext.ai ?? 1) >= 2;
-/** Version 3: Tarot thinks ahead in play, and bids for how it now plays. */
+/** Version 3: Tarot thinks ahead in play, and bids for how it now plays.
+ *  Version 4: Hearts thinks ahead; Whist 22 pictures deals that fit the bids. */
 export const aiAtLeast = (run: Run, v: number) => (run.ext.ai ?? 1) >= v;
 
 /** A slow AI decision, remembered. The run keeps a tape of these (in the

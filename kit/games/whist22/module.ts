@@ -80,7 +80,7 @@ function runBids(run: Run<WhistHand>, stepwise = false) {
 	let guard = 0;
 	while (h.stage === 'bid' && h.turn !== W.PLAYER) {
 		if (++guard > 10) throw new Error('whist22: bidding stuck');
-		W.bid(h, h.turn, ai.chooseBid(h, h.turn, R.smartAI(run)));
+		W.bid(h, h.turn, aiBid(run));
 	}
 	if (h.stage === 'play') {
 		run.phase = R.PHASE.PLAY;
@@ -95,8 +95,36 @@ function runPlay(run: Run<WhistHand>) {
 
 function aiStep(run: Run<WhistHand>) {
 	const h = run.hand;
-	const m = ai.chooseCard(h, h.turn, R.smartAI(run));
+	const m = aiMove(run);
 	return W.play(h, h.turn, m.card, m.fool);
+}
+
+// From AI version 4 the thinking is slower (it pictures deals that fit the
+// bids), so its choices go on the run's tape (R.recall) for replays to read.
+function aiBid(run: Run<WhistHand>): number {
+	const h = run.hand;
+	if (!R.aiAtLeast(run, 4)) return ai.chooseBid(h, h.turn, R.smartAI(run));
+	const s = R.recall(run, (x) => W.canBid(h, h.turn, Number(x)), () => String(ai.chooseBid(h, h.turn, true, true)));
+	return Number(s);
+}
+
+function aiMove(run: Run<WhistHand>): ai.Move {
+	const h = run.hand;
+	if (!R.aiAtLeast(run, 4)) return ai.chooseCard(h, h.turn, R.smartAI(run));
+	const hand = h.hands[h.turn];
+	if (hand.length === 1 && !W.isFool(hand[0])) return { card: hand[0] };
+	const decode = (x: string): ai.Move | null => {
+		const [rank, fool] = x.split(':');
+		const card = hand.find((c) => c.rank === Number(rank));
+		if (!card) return null;
+		if (W.isFool(card)) return fool === '0' || fool === '22' ? { card, fool: Number(fool) } : null;
+		return { card };
+	};
+	const s = R.recall(run, (x) => decode(x) !== null, () => {
+		const m = ai.chooseCard(h, h.turn, true, true);
+		return `${m.card.rank}:${m.fool ?? ''}`;
+	});
+	return decode(s)!;
 }
 
 function ctx(run: Run<WhistHand>): WhistCtx {
