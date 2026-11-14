@@ -49,9 +49,7 @@ struct GameButton: View {
                 )
         }
         .buttonStyle(PressStyle())
-        .phaseAnimator([1.5, -1.5]) { content, y in
-            content.offset(y: pulse && enabled ? y : 0)
-        } animation: { _ in .easeInOut(duration: 0.78) }
+        .modifier(Bob(on: pulse && enabled))
     }
 
     private var fill: Color {
@@ -59,6 +57,22 @@ struct GameButton: View {
         case .brass: Theme.brass
         case .plain: Theme.panelEdge
         case .ploy: Theme.ploy
+        }
+    }
+}
+
+/// A gentle bob up and down, for a button asking to be pressed. Only a
+/// bobbing button animates: a phase animator runs (and redraws the screen)
+/// every frame even when its offset is zero.
+struct Bob: ViewModifier {
+    let on: Bool
+    func body(content: Content) -> some View {
+        if on {
+            content.phaseAnimator([1.5, -1.5]) { content, y in
+                content.offset(y: y)
+            } animation: { _ in .easeInOut(duration: 0.78) }
+        } else {
+            content
         }
     }
 }
@@ -107,6 +121,11 @@ struct Particles: View {
     @Environment(GameModel.self) private var model
 
     var body: some View {
+        // Nothing in the air: no layer at all, so nothing redraws.
+        if model.particlesLive { live }
+    }
+
+    private var live: some View {
         TimelineView(.animation) { tl in
             Canvas { g, _ in
                 let now = tl.date
@@ -237,108 +256,173 @@ struct EditionShine: ViewModifier {
                 .saturation(0.15)
                 .opacity(0.55)
                 .background(content.colorMultiply(Edition.color("phantom")).opacity(0.8).offset(x: Pixel.size, y: Pixel.size))
-        default:
-            TimelineView(.animation) { tl in
-                let t = tl.date.timeIntervalSinceReferenceDate
-                content.overlay {
-                    sheen(t).mask(content).allowsHitTesting(false)
-                }
+        case let e?:
+            content.overlay {
+                EditionSheen(edition: e).mask(content).allowsHitTesting(false)
             }
         }
     }
+}
+
+/// An edition's moving layer. It moves by SwiftUI animations of offset,
+/// scale and opacity (interpolated without rebuilding any views), or by
+/// timelines that tick only when something changes (static's snow three
+/// times a second, frost's twinkle, neon's flickers): never a redraw every
+/// frame, so a hand full of shining cards stays cheap.
+struct EditionSheen: View {
+    let edition: String
+    @State private var on = false
+
+    var body: some View {
+        GeometryReader { geo in
+            layers(geo.size)
+        }
+        .onAppear { on = true }
+    }
+
+    /// A band sweeping corner to corner every couple of seconds.
+    private func band(_ size: CGSize) -> some View {
+        LinearGradient(
+            stops: [.init(color: .clear, location: 0), .init(color: .white.opacity(0.9), location: 0.5), .init(color: .clear, location: 1)],
+            // Drawn three times the card's size (centered on it), so the
+            // gradient's own edges, where the band would be cut off, never show.
+            startPoint: UnitPoint(x: 1.15 / 3, y: 1.15 / 3), endPoint: UnitPoint(x: 1.85 / 3, y: 1.85 / 3))
+            .frame(width: size.width * 3, height: size.height * 3)
+            .offset(x: (on ? 1.2 : -1.2) * size.width - size.width, y: (on ? 1.2 : -1.2) * size.height - size.height)
+            .animation(.linear(duration: 1 / 0.55).repeatForever(autoreverses: false), value: on)
+    }
 
     @ViewBuilder
-    private func sheen(_ t: Double) -> some View {
-        // A band sweeping corner to corner every couple of seconds.
-        let p = (t * 0.55).truncatingRemainder(dividingBy: 1) * 2.4 - 0.7
-        let band = LinearGradient(
-            stops: [.init(color: .clear, location: 0), .init(color: .white.opacity(0.9), location: 0.5), .init(color: .clear, location: 1)],
-            startPoint: UnitPoint(x: p - 0.35, y: p - 0.35), endPoint: UnitPoint(x: p + 0.35, y: p + 0.35))
+    private func layers(_ size: CGSize) -> some View {
         switch edition {
         case "etched":
             ZStack {
                 Color(hex: 0xc9d6de).opacity(0.35).blendMode(.color)
-                band.blendMode(.screen)
+                band(size).blendMode(.screen)
             }
         case "lacquered":
             ZStack {
                 Color(hex: 0xe8573f).opacity(0.3).blendMode(.overlay)
-                band.blendMode(.screen)
+                band(size).blendMode(.screen)
             }
         case "static":
-            // Faint TV snow, redrawn a few times a second, and light scanlines rolling down.
-            ZStack {
-                Canvas { g, size in
-                    var rng = SplitMix(seed: UInt64(t * 3))
-                    let px = 3.0
-                    for y in stride(from: 0.0, to: size.height, by: px) {
-                        for x in stride(from: 0.0, to: size.width, by: px) {
-                            let v = rng.next()
-                            g.fill(Path(CGRect(x: x, y: y, width: px, height: px)), with: .color(Color(white: v)))
-                        }
+            // Faint TV snow, changing a few times a second, and light scanlines rolling down.
+            ZStack(alignment: .topLeading) {
+                TimelineView(.periodic(from: .now, by: 1 / 3)) { tl in
+                    let frame = Int(tl.date.timeIntervalSinceReferenceDate * 3) % StaticArt.frames.count
+                    if let img = StaticArt.frames[frame] {
+                        Image(decorative: img, scale: 1).resizable().interpolation(.none)
+                            .frame(width: Double(StaticArt.cells) * 3, height: Double(StaticArt.cells) * 3)
                     }
                 }
                 .opacity(0.2).blendMode(.overlay)
-                Canvas { g, size in
-                    let off = (t * 6).truncatingRemainder(dividingBy: 6)
-                    for y in stride(from: off - 6, to: size.height, by: 6) {
-                        g.fill(Path(CGRect(x: 0, y: y, width: size.width, height: 2)), with: .color(.black.opacity(0.08)))
-                    }
+                if let lines = StaticArt.scanlines {
+                    Image(decorative: lines, scale: 1).resizable().interpolation(.none)
+                        .frame(width: size.width, height: Double(StaticArt.cells) * 3 + 6)
+                        .offset(y: on ? 0 : -6)
+                        .animation(.linear(duration: 1).repeatForever(autoreverses: false), value: on)
                 }
             }
+            .frame(width: size.width, height: size.height, alignment: .topLeading)
+            .clipped()
         case "molten":
             // Magma glowing, swelling and fading like heat.
-            let k = 0.5 + 0.5 * sin(t * 2.6)
             ZStack {
                 RadialGradient(colors: [Color(hex: 0xff5a14), .clear], center: UnitPoint(x: 0.3, y: 0.75), startRadius: 0, endRadius: 60)
                 RadialGradient(colors: [Color(hex: 0xffaa28), .clear], center: UnitPoint(x: 0.75, y: 0.25), startRadius: 0, endRadius: 50)
                 LinearGradient(colors: [Color(hex: 0xff781e).opacity(0.4), Color(hex: 0xc81e0a).opacity(0.6)], startPoint: .top, endPoint: .bottom)
             }
-            .scaleEffect(1 + 0.08 * k)
-            .opacity(0.45 + 0.4 * k)
+            .scaleEffect(on ? 1.08 : 1)
+            .opacity(on ? 0.85 : 0.45)
+            .animation(.easeInOut(duration: 1.2).repeatForever(autoreverses: true), value: on)
             .blendMode(.multiply)
         case "frost":
             // A cold tint, and sparkles twinkling.
-            let k = (t / 0.55).rounded(.down).truncatingRemainder(dividingBy: 2) == 0 ? 0.35 : 1.0
             ZStack {
                 LinearGradient(colors: [Color(red: 0.59, green: 0.8, blue: 1), Color(red: 0.84, green: 0.93, blue: 1), Color(red: 0.55, green: 0.76, blue: 1)],
                                startPoint: .topLeading, endPoint: .bottomTrailing)
                     .opacity(0.75).blendMode(.multiply)
-                GeometryReader { geo in
+                TimelineView(.periodic(from: .now, by: 0.55)) { tl in
+                    let k = (tl.date.timeIntervalSinceReferenceDate / 0.55).rounded(.down).truncatingRemainder(dividingBy: 2) == 0 ? 0.35 : 1.0
                     ForEach(Array([(0.18, 0.22), (0.72, 0.14), (0.56, 0.48), (0.28, 0.7), (0.82, 0.78), (0.44, 0.9)].enumerated()), id: \.offset) { i, p in
                         Circle().fill(.white)
                             .frame(width: i % 2 == 0 ? 4 : 3, height: i % 2 == 0 ? 4 : 3)
                             .shadow(color: Color(red: 0.27, green: 0.63, blue: 1), radius: 2)
-                            .position(x: geo.size.width * p.0, y: geo.size.height * p.1)
+                            .position(x: size.width * p.0, y: size.height * p.1)
                             .opacity(i % 2 == 0 ? k : 1.35 - k)
                     }
                 }
             }
         case "neon":
             // A glowing tube round the card that buzzes and flickers.
-            let phase = t.truncatingRemainder(dividingBy: 3.2) / 3.2
-            let flicker = (0.06...0.08).contains(phase) ? 0.25 : (0.56...0.58).contains(phase) ? 0.45 : 1
-            ZStack {
-                Rectangle().strokeBorder(Color(hex: 0xff4fd8), lineWidth: 2)
-                Rectangle().strokeBorder(Color(hex: 0x4fe7ff).opacity(0.55), lineWidth: 2).padding(2)
-                Rectangle().strokeBorder(Color(hex: 0xff4fd8).opacity(0.6), lineWidth: 6).blur(radius: 5)
-            }
-            .opacity(flicker)
-        default: // prismatic: rainbow foil bands drifting across, no spin
-            let shift = (t / 2.6).truncatingRemainder(dividingBy: 1)
-            ZStack {
-                GeometryReader { geo in
-                    let w = max(geo.size.width, geo.size.height) * 3
-                    LinearGradient(colors: [.red, .orange, .yellow, .green, .cyan, .purple, .red, .orange, .yellow, .green, .cyan, .purple, .red],
-                                   startPoint: .leading, endPoint: .trailing)
-                        .frame(width: w, height: w)
-                        .rotationEffect(.degrees(20))
-                        .offset(x: -w / 3 - shift * w / 2, y: -w / 3)
+            TimelineView(NeonFlicker()) { tl in
+                let phase = tl.date.timeIntervalSinceReferenceDate.truncatingRemainder(dividingBy: 3.2) / 3.2
+                let flicker = (0.06..<0.08).contains(phase) ? 0.25 : (0.56..<0.58).contains(phase) ? 0.45 : 1
+                ZStack {
+                    Rectangle().strokeBorder(Color(hex: 0xff4fd8), lineWidth: 2)
+                    Rectangle().strokeBorder(Color(hex: 0x4fe7ff).opacity(0.55), lineWidth: 2).padding(2)
+                    Rectangle().strokeBorder(Color(hex: 0xff4fd8).opacity(0.6), lineWidth: 6).blur(radius: 5)
                 }
-                .opacity(0.6).blendMode(.overlay)
-                band.opacity(0.7).blendMode(.screen)
+                .opacity(flicker)
+            }
+        default: // prismatic: rainbow foil bands drifting across, no spin
+            let w = max(size.width, size.height) * 3
+            ZStack {
+                // Four rainbows across a sheet twice as wide as tall, centered
+                // on the card, sliding one rainbow's width and starting over:
+                // it covers the card at every point of the slide.
+                LinearGradient(colors: Array(repeating: [Color.red, .orange, .yellow, .green, .cyan, .purple], count: 4).flatMap { $0 } + [.red],
+                               startPoint: .leading, endPoint: .trailing)
+                    .frame(width: w * 2, height: w)
+                    .rotationEffect(.degrees(20))
+                    .offset(x: on ? -w / 4 : w / 4)
+                    .animation(.linear(duration: 2.6).repeatForever(autoreverses: false), value: on)
+                    .frame(width: size.width, height: size.height)
+                    .opacity(0.6).blendMode(.overlay)
+                band(size).opacity(0.7).blendMode(.screen)
             }
         }
+    }
+}
+
+/// The moments neon's tube flickers (and recovers), every 3.2 seconds.
+struct NeonFlicker: TimelineSchedule {
+    func entries(from start: Date, mode: TimelineScheduleMode) -> AnyIterator<Date> {
+        let marks = [0.06, 0.08, 0.56, 0.58].map { $0 * 3.2 }, period = 3.2
+        let t0 = start.timeIntervalSinceReferenceDate
+        var cycle = (t0 / period).rounded(.down), i = 0, first = true
+        return AnyIterator {
+            if first { first = false; return start }
+            while true {
+                let d = cycle * period + marks[i]
+                i += 1
+                if i == marks.count { i = 0; cycle += 1 }
+                if d > t0 { return Date(timeIntervalSinceReferenceDate: d) }
+            }
+        }
+    }
+}
+
+/// Static's snow (a few frames, drawn once) and its scanlines.
+@MainActor
+enum StaticArt {
+    /// Snow cells on a side; each cell is 3 points.
+    static let cells = 64
+    static let frames: [CGImage?] = (0..<6).map { f in
+        Pixel.image(width: cells, height: cells) { ctx in
+            var rng = SplitMix(seed: UInt64(f + 1) &* 7919)
+            for y in 0..<cells {
+                for x in 0..<cells {
+                    ctx.setFillColor(gray: rng.next(), alpha: 1)
+                    ctx.fill(CGRect(x: x, y: y, width: 1, height: 1))
+                }
+            }
+        }
+    }
+    /// Dark lines 2 points tall every 6, drawn at one pixel per point.
+    static let scanlines: CGImage? = Pixel.image(width: 1, height: cells * 3 + 6) { ctx in
+        ctx.setFillColor(gray: 0, alpha: 0.08)
+        for y in stride(from: 0, to: cells * 3 + 6, by: 6) { ctx.fill(CGRect(x: 0, y: y, width: 1, height: 2)) }
     }
 }
 

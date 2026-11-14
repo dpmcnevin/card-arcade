@@ -56,7 +56,7 @@ struct RootView: View {
             if geo.size.width > 0 && !Self.fits(geo.size, model.layout) {
                 Theme.bg
             } else {
-                TimelineView(.animation(paused: Date() > model.shakeUntil)) { tl in
+                TimelineView(.animation(paused: !model.shaking)) { tl in
                     let L = model.layout
                     let scale = min(geo.size.width / L.W, geo.size.height / L.H)
                     let shaking = tl.date < model.shakeUntil

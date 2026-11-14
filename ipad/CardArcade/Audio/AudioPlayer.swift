@@ -8,7 +8,11 @@ import AVFoundation
 final class AudioPlayer {
     private let engine = AVAudioEngine()
     private var effects: [String: AVAudioPCMBuffer] = [:]
-    private var voices: [(player: AVAudioPlayerNode, speed: AVAudioUnitVarispeed)] = []
+    /// Effect voices: plain players at the output's own sample rate. A pitch
+    /// is made by resampling the effect when it plays (they're short), not by
+    /// a varispeed unit per voice, which resamples silence all the time.
+    private var voices: [AVAudioPlayerNode] = []
+    private let voiceFormat: AVAudioFormat
     private var nextVoice = 0
     private var musicNodes: [AVAudioPlayerNode] = []
     private var takes: [(buffer: AVAudioPCMBuffer, length: AVAudioFramePosition)] = []
@@ -25,14 +29,13 @@ final class AudioPlayer {
     init() {
         try? AVAudioSession.sharedInstance().setCategory(.ambient, options: [.mixWithOthers])
         try? AVAudioSession.sharedInstance().setActive(true)
-        let format = AVAudioFormat(standardFormatWithSampleRate: 44100, channels: 1)!
-        for _ in 0..<10 {
-            let player = AVAudioPlayerNode(), speed = AVAudioUnitVarispeed()
+        let rate = engine.outputNode.outputFormat(forBus: 0).sampleRate
+        voiceFormat = AVAudioFormat(standardFormatWithSampleRate: rate > 0 ? rate : 48000, channels: 1)!
+        for _ in 0..<6 {
+            let player = AVAudioPlayerNode()
             engine.attach(player)
-            engine.attach(speed)
-            engine.connect(player, to: speed, format: format)
-            engine.connect(speed, to: engine.mainMixerNode, format: format)
-            voices.append((player, speed))
+            engine.connect(player, to: engine.mainMixerNode, format: voiceFormat)
+            voices.append(player)
         }
         let musicFormat = AVAudioFormat(standardFormatWithSampleRate: 22050, channels: 1)!
         for _ in 0..<2 {
@@ -91,11 +94,30 @@ final class AudioPlayer {
         nextVoice = (nextVoice + 1) % voices.count
         var p = pitch
         if jitter > 0 { p *= 1 + Float.random(in: -jitter...jitter) }
-        v.speed.rate = max(0.25, min(4, p))
-        v.player.stop()
-        v.player.volume = volume * 0.8
-        v.player.scheduleBuffer(buf, at: nil)
-        v.player.play()
+        guard let out = resampled(buf, pitch: Double(max(0.25, min(4, p)))) else { return }
+        v.stop()
+        v.volume = volume * 0.8
+        v.scheduleBuffer(out, at: nil)
+        v.play()
+    }
+
+    /// The effect at the voices' sample rate, sped up (and pitched up) by
+    /// `pitch`, by linear interpolation.
+    private func resampled(_ buf: AVAudioPCMBuffer, pitch: Double) -> AVAudioPCMBuffer? {
+        guard let src = buf.floatChannelData?[0] else { return nil }
+        let n = Int(buf.frameLength)
+        let step = buf.format.sampleRate * pitch / voiceFormat.sampleRate
+        let count = max(1, Int(Double(n) / step))
+        guard let out = AVAudioPCMBuffer(pcmFormat: voiceFormat, frameCapacity: AVAudioFrameCount(count)),
+              let dst = out.floatChannelData?[0] else { return nil }
+        for i in 0..<count {
+            let x = Double(i) * step
+            let j = Int(x), f = Float(x - Double(j))
+            let a = src[min(j, n - 1)], b = src[min(j + 1, n - 1)]
+            dst[i] = a + (b - a) * f
+        }
+        out.frameLength = AVAudioFrameCount(count)
+        return out
     }
 
     private func startMusic() {

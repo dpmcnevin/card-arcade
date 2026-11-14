@@ -86,6 +86,11 @@ final class GameModel {
     private(set) var bursts: [Burst] = []
     private(set) var shakeUntil = Date.distantPast
     private(set) var shakeAmount = 0.0
+    /// A shake is running: the stage redraws every frame only while this is
+    /// set (cleared once the shake ends, so an idle table costs nothing).
+    private(set) var shaking = false
+    /// Confetti is in the air: the particle layer only animates while set.
+    private(set) var particlesLive = false
     var hovered: String?
     /// The board whose overview was last dismissed.
     private var seen = ""
@@ -673,7 +678,14 @@ final class GameModel {
 
     func shake(_ amount: Double) {
         shakeAmount = max(amount, Date() < shakeUntil ? shakeAmount : 0)
-        shakeUntil = Date().addingTimeInterval(0.5)
+        let until = Date().addingTimeInterval(0.5)
+        shakeUntil = until
+        shaking = true
+        Task { [weak self] in
+            try? await Task.sleep(for: .seconds(0.55))
+            guard let self, self.shakeUntil == until else { return }
+            self.shaking = false
+        }
     }
 
     func burst(_ x: Double, _ y: Double, count: Int, colors: [Color], speed: Double, life: Double, size: Double) {
@@ -681,6 +693,14 @@ final class GameModel {
         bursts.removeAll { now.timeIntervalSince($0.start) > $0.life * 1.3 }
         bursts.append(Burst(x: x, y: y, colors: colors, count: count, speed: speed, life: life, size: size,
                             start: now, seed: UInt64.random(in: 1...UInt64.max)))
+        particlesLive = true
+        let end = bursts.map { $0.start.addingTimeInterval($0.life * 1.3) }.max() ?? now
+        Task { [weak self] in
+            try? await Task.sleep(for: .seconds(end.timeIntervalSinceNow + 0.05))
+            guard let self, Date() >= end, (self.bursts.map { $0.start.addingTimeInterval($0.life * 1.3) }.max() ?? .distantPast) <= Date() else { return }
+            self.bursts.removeAll()
+            self.particlesLive = false
+        }
     }
 }
 

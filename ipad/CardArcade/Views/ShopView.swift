@@ -402,27 +402,28 @@ struct CardPickerView: View {
 struct RelicBurst: View {
     let color: Color
     var rays = 10
+    @State private var on = false
 
     var body: some View {
-        TimelineView(.animation(minimumInterval: 1 / 20)) { tl in
-            let t = tl.date.timeIntervalSinceReferenceDate
-            Canvas { g, size in
-                let c = CGPoint(x: size.width / 2, y: size.height / 2)
-                let r = max(size.width, size.height) / 2
-                let turn = (t * 0.15).truncatingRemainder(dividingBy: .pi * 2)
-                for i in 0..<rays {
-                    let a0 = turn + Double(i) / Double(rays) * .pi * 2
-                    let a1 = a0 + .pi / Double(rays)
-                    var p = Path()
-                    p.move(to: c)
-                    p.addLine(to: CGPoint(x: c.x + cos(a0) * r, y: c.y + sin(a0) * r))
-                    p.addLine(to: CGPoint(x: c.x + cos(a1) * r, y: c.y + sin(a1) * r))
-                    p.closeSubpath()
-                    g.fill(p, with: .color(color.opacity(0.32)))
-                }
+        // Drawn once and turned by an animation (no redraw per frame).
+        Canvas { g, size in
+            let c = CGPoint(x: size.width / 2, y: size.height / 2)
+            let r = max(size.width, size.height) / 2
+            for i in 0..<rays {
+                let a0 = Double(i) / Double(rays) * .pi * 2
+                let a1 = a0 + .pi / Double(rays)
+                var p = Path()
+                p.move(to: c)
+                p.addLine(to: CGPoint(x: c.x + cos(a0) * r, y: c.y + sin(a0) * r))
+                p.addLine(to: CGPoint(x: c.x + cos(a1) * r, y: c.y + sin(a1) * r))
+                p.closeSubpath()
+                g.fill(p, with: .color(color.opacity(0.32)))
             }
-            .mask(RadialGradient(colors: [.white, .white.opacity(0)], center: .center, startRadius: 10, endRadius: 64))
         }
+        .rotationEffect(.radians(on ? .pi * 2 : 0))
+        .animation(.linear(duration: .pi * 2 / 0.15).repeatForever(autoreverses: false), value: on)
+        .mask(RadialGradient(colors: [.white, .white.opacity(0)], center: .center, startRadius: 10, endRadius: 64))
         .allowsHitTesting(false)
+        .onAppear { on = true }
     }
 }
