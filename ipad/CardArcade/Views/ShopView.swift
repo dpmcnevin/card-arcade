@@ -402,10 +402,9 @@ struct CardPickerView: View {
 struct RelicBurst: View {
     let color: Color
     var rays = 10
-    @State private var on = false
 
     var body: some View {
-        // Drawn once and turned by an animation (no redraw per frame).
+        // Drawn once.
         Canvas { g, size in
             let c = CGPoint(x: size.width / 2, y: size.height / 2)
             let r = max(size.width, size.height) / 2
@@ -420,10 +419,10 @@ struct RelicBurst: View {
                 g.fill(p, with: .color(color.opacity(0.32)))
             }
         }
-        .rotationEffect(.radians(on ? .pi * 2 : 0))
-        .animation(.linear(duration: .pi * 2 / 0.15).repeatForever(autoreverses: false), value: on)
+        // A small turn on each glint, then still.
+        .rotationEffect(.degrees(Double(Glint.shared.tick) * 9))
+        .animation(.easeInOut(duration: 1.2), value: Glint.shared.tick)
         .mask(RadialGradient(colors: [.white, .white.opacity(0)], center: .center, startRadius: 10, endRadius: 64))
         .allowsHitTesting(false)
-        .onAppear { on = true }
     }
 }

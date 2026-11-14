@@ -392,6 +392,12 @@ final class GameModel {
     }
 
     /// A tap on a card in your hand (or a seat you play).
+    /// Picking cards now (a pass, the dog) rather than playing one.
+    var picking: Bool {
+        guard let v = view else { return false }
+        return v.phase == .pre && v.pickCount > 0
+    }
+
     func tap(_ c: CardV) {
         if skip() { return }
         guard let v = view else { return }

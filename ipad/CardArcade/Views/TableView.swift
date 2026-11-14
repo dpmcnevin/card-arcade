@@ -7,7 +7,10 @@ import SwiftUI
 /// spot and flips it on the way.
 struct TableView: View {
     @Environment(GameModel.self) private var model
-    @State private var drag: (key: String, at: CGPoint, moved: Bool)?
+    @State private var drag: (key: String, at: CGPoint, moved: Bool, start: CGPoint)?
+    /// The pick as it was before this touch toggled a card (put back if the
+    /// touch turns into a drag).
+    @State private var pickBefore: [String]?
 
     private var L: TableLayout { model.layout }
 
@@ -54,14 +57,21 @@ struct TableView: View {
             }
             .frame(width: L.W, height: L.H)
             .animation(.spring(duration: 0.45, bounce: 0.2), value: animationKey(v, tv))
+            // Your touch (a pick, the lift under your finger, a drag) answers quickly.
+            .animation(.spring(duration: 0.18, bounce: 0.2), value: touchKey)
             .animation(.easeOut(duration: 0.15), value: model.showLastTrick)
         }
+    }
+
+    /// Changes when your touch moves cards.
+    private var touchKey: String {
+        "\(model.picked)|\(model.hovered ?? "")|\(drag?.key ?? "")|\(Int(drag?.at.x ?? 0) / 8)|\(Int(drag?.at.y ?? 0) / 8)"
     }
 
     /// Changes whenever cards should move.
     private func animationKey(_ v: RunView, _ tv: TableV) -> String {
         let counts = tv.seats.map { "\($0.cards.count)\($0.faceUp)" }.joined()
-        return "\(model.deal)|\(counts)|\(tv.trick.count)|\(tv.played.count)|\(model.swept ?? "")|\(model.sweeping)|\(model.picked)|\(model.handOrder)|\(drag?.key ?? "")|\(Int(drag?.at.x ?? 0) / 8)|\(Int(drag?.at.y ?? 0) / 8)|\(model.hovered ?? "")|\(v.phase)|\(model.busy)"
+        return "\(model.deal)|\(counts)|\(tv.trick.count)|\(tv.played.count)|\(model.swept ?? "")|\(model.sweeping)|\(model.handOrder)|\(v.phase)|\(model.busy)"
     }
 
     private func transition(_ p: Placement) -> AnyTransition {
@@ -207,14 +217,35 @@ struct TableView: View {
     private func cardGesture(_ c: CardV, mine: [CardV], slots: [TableLayout.Slot]) -> some Gesture {
         DragGesture(minimumDistance: 0, coordinateSpace: .named("stage"))
             .onChanged { g in
-                let moved = (drag?.moved ?? false) || hypot(g.translation.width, g.translation.height) > Self.dragThreshold
-                if moved && !(drag?.moved ?? false) { model.audio.play("card_hover", volume: 0.6, jitter: 0.1) }
-                drag = (c.key, g.location, moved)
+                // A touch we haven't seen (a new start point): it's a touch down.
+                // (A touch SwiftUI cancelled never reaches onEnded, so the old
+                // one's state can still be here; a new start replaces it.)
+                guard let d = drag, d.key == c.key, d.start == g.startLocation else {
+                    // Touch down: answer at once. A card being picked (a pass,
+                    // the dog) toggles now; any card lifts under the finger.
+                    drag = (c.key, g.location, false, g.startLocation)
+                    model.hovered = c.key
+                    pickBefore = model.picking ? model.picked : nil
+                    if pickBefore != nil { model.tap(c) }
+                    return
+                }
+                let moved = d.moved || hypot(g.translation.width, g.translation.height) > Self.dragThreshold
+                // Until it's a drag, a wobble changes nothing (and redraws nothing).
+                guard moved else { return }
+                if !d.moved {
+                    model.audio.play("card_hover", volume: 0.6, jitter: 0.1)
+                    // A drag to rearrange, not a pick: undo the toggle.
+                    if let before = pickBefore { model.picked = before }
+                }
+                drag = (c.key, g.location, true, d.start)
             }
             .onEnded { g in
                 let d = drag
+                let toggled = pickBefore != nil
                 drag = nil
-                guard let d, d.moved else { return model.tap(c) }
+                pickBefore = nil
+                if model.hovered == c.key { model.hovered = nil }
+                guard let d, d.moved else { return toggled ? () : model.tap(c) }
                 if model.isLegal(c) && L.isOverTrick(g.location) { return model.play(c) }
                 var index = 0
                 for (j, s) in slots.enumerated() where mine[j].key != c.key && s.cx < g.location.x { index += 1 }
